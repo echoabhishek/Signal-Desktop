@@ -83,8 +83,9 @@ export type SocketManagerOptions = Readonly<{
 // Incoming requests on unauthenticated resource are not currently supported.
 // IWebSocketResource is responsible for their immediate termination.
 export class SocketManager extends EventListener {
-  #backOff = new BackOff(FIBONACCI_TIMEOUTS, {
+  #backOff = new BackOff(EXTENDED_FIBONACCI_TIMEOUTS, {
     jitter: JITTER,
+    maxInterval: 5 * durations.MINUTE,
   });
 
   #authenticated?: AbortableProcess<IWebSocketResource>;
@@ -126,6 +127,7 @@ export class SocketManager extends EventListener {
   // credentials changed
   public async authenticate(credentials: WebAPICredentials): Promise<void> {
     if (this.#isRemotelyExpired) {
+      log.error('SocketManager: Authentication failed - socket is remotely expired');
       throw new HTTPError('SocketManager remotely expired', {
         code: 0,
         headers: {},
@@ -133,6 +135,7 @@ export class SocketManager extends EventListener {
       });
     }
 
+    log.info('SocketManager: Starting authentication process');
     const { username, password } = credentials;
     if (!username && !password) {
       log.warn('SocketManager authenticate was called without credentials');
@@ -162,6 +165,12 @@ export class SocketManager extends EventListener {
       'SocketManager: connecting authenticated socket ' +
         `(hasStoriesDisabled=${this.#hasStoriesDisabled})`
     );
+
+    // Reset backoff on new connection attempt
+    this.#backOff.reset();
+
+    // Add more detailed logging for connection attempts
+    log.info('SocketManager: Starting connection with extended timeout and backoff');
 
     this.#setStatus(SocketStatus.CONNECTING);
 
@@ -719,6 +728,12 @@ export class SocketManager extends EventListener {
     extraHeaders?: Record<string, string>;
     timeout?: number;
   }): AbortableProcess<IWebSocketResource> {
+    log.info(`SocketManager: Initiating connection for ${name} socket`);
+    
+    // Add connection attempt tracking for better error handling
+    let attemptCount = 0;
+    const maxAttempts = 3;
+    
     const queryWithDefaults = {
       agent: 'OWD',
       version: this.options.version,
@@ -729,34 +744,73 @@ export class SocketManager extends EventListener {
     const { version } = this.options;
 
     const start = performance.now();
-    const webSocketResourceConnection = connectWebSocket({
-      name,
-      url,
-      version,
-      certificateAuthority: this.options.certificateAuthority,
-      proxyAgent,
-      timeout,
+    
+    const connectWithRetry = async (): Promise<IWebSocketResource> => {
+      while (attemptCount < maxAttempts) {
+        try {
+          attemptCount += 1;
+          log.info(`SocketManager: Connection attempt ${attemptCount}/${maxAttempts} for ${name} socket`);
+          
+          const webSocketResourceConnection = connectWebSocket({
+            name,
+            url,
+            version,
+            certificateAuthority: this.options.certificateAuthority,
+            proxyAgent,
+            timeout,
+            extraHeaders,
+          });
 
-      extraHeaders,
+          const resource = await webSocketResourceConnection.getResult();
+          log.info(`SocketManager: Successfully connected ${name} socket on attempt ${attemptCount}`);
+          return resource;
+        } catch (error) {
+          if (attemptCount === maxAttempts) {
+            log.error(`SocketManager: Failed to connect ${name} socket after ${maxAttempts} attempts`);
+            throw error;
+          }
+          log.warn(`SocketManager: Connection attempt ${attemptCount} failed, retrying...`);
+          await sleep(Math.min(1000 * attemptCount, 5000)); // Exponential backoff with max 5s
+        }
+      }
+      throw new Error('Connection failed after max attempts');
+    };
 
-      createResource(socket: WebSocket): WebSocketResource {
-        const duration = (performance.now() - start).toFixed(1);
-        log.info(
-          `WebSocketResource(${resourceOptions.name}) connected in ${duration}ms`
-        );
-        return new WebSocketResource(socket, resourceOptions);
-      },
-    });
+    const process = new AbortableProcess(
+      (async () => {
+        try {
+          const socket = await connectWithRetry();
+          const duration = (performance.now() - start).toFixed(1);
+          
+          log.info(
+            `WebSocketResource(${resourceOptions.name}) connected in ${duration}ms`
+          );
+          
+          const resource = new WebSocketResource(socket, resourceOptions);
+          
+          const shadowingModeEnabled =
+            !resourceOptions.transportOption ||
+            resourceOptions.transportOption === TransportOption.Original;
+            
+          return shadowingModeEnabled
+            ? resource
+            : this.#connectWithShadowing(
+                new AbortableProcess(Promise.resolve(resource), () => resource.close()),
+                resourceOptions
+              );
+        } catch (error) {
+          log.error(
+            `SocketManager: Failed to establish ${name} socket connection: ${error.message}`
+          );
+          throw error;
+        }
+      })(),
+      () => {
+        log.info(`SocketManager: Aborting ${name} socket connection attempt`);
+      }
+    );
 
-    const shadowingModeEnabled =
-      !resourceOptions.transportOption ||
-      resourceOptions.transportOption === TransportOption.Original;
-    return shadowingModeEnabled
-      ? webSocketResourceConnection
-      : this.#connectWithShadowing(
-          webSocketResourceConnection,
-          resourceOptions
-        );
+    return process;
   }
 
   /**

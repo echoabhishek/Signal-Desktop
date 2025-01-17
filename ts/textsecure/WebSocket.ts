@@ -16,9 +16,9 @@ import * as Timers from '../Timers';
 import { ConnectTimeoutError, HTTPError } from './Errors';
 import { handleStatusCode, translateError } from './Utils';
 
-const TEN_SECONDS = 10 * durations.SECOND;
-const WEBSOCKET_CONNECT_TIMEOUT = TEN_SECONDS;
-const KEEPALIVE_INTERVAL_MS = TEN_SECONDS;
+const THIRTY_SECONDS = 30 * durations.SECOND;
+const WEBSOCKET_CONNECT_TIMEOUT = THIRTY_SECONDS;
+const KEEPALIVE_INTERVAL_MS = THIRTY_SECONDS;
 
 export type IResource = {
   close(code: number, reason: string): void;
