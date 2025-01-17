@@ -3609,11 +3609,12 @@ async function syncMessageRequestResponse(
 
   const groupId = conversation.getGroupIdBuffer();
 
+  // Even if we are the primary device, we should still sync message request responses
+  // to ensure blocked/deleted conversations stay that way across all devices
   if (window.ConversationController.areWePrimaryDevice()) {
-    log.warn(
-      'syncMessageRequestResponse: We are primary device; not sending message request sync'
+    log.info(
+      'syncMessageRequestResponse: Primary device sending message request sync to ensure consistency'
     );
-    return;
   }
 
   try {
