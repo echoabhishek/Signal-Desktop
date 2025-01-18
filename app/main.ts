@@ -125,20 +125,56 @@ function safelyStoreWindowBounds(window: BrowserWindow): void {
   }
 }
 
+function restoreWindowBounds(window: BrowserWindow): void {
+  try {
+    if (storedWindowBounds) {
+      const display = screen.getDisplayMatching(storedWindowBounds);
+      if (display) {
+        const { width, height } = display.workAreaSize;
+        if (storedWindowBounds.width <= width && storedWindowBounds.height <= height) {
+          window.setBounds(storedWindowBounds);
+          getLogger().info('Restored window bounds:', storedWindowBounds);
+        } else {
+          getLogger().warn('Not restoring window bounds: stored size exceeds current display work area');
+        }
+      } else {
+        getLogger().warn('Not restoring window bounds: unable to find matching display');
+      }
+    } else {
+      getLogger().info('No stored window bounds to restore');
+    }
+  } catch (error) {
+    getLogger().error('Error restoring window bounds:', Errors.toLogFormat(error));
+  }
+}
+
 const handleWindowStateChange = debounce((window: BrowserWindow) => {
   getLogger().info('Window state changed');
   safelyStoreWindowBounds(window);
 }, 1000);  // Debounce for 1 second
 
 function initializeWindowStateHandlers(window: BrowserWindow): void {
-  window.on('show', () => handleWindowStateChange(window));
+  window.on('show', () => {
+    restoreWindowBounds(window);
+    handleWindowStateChange(window);
+  });
   window.on('hide', () => handleWindowStateChange(window));
   window.on('maximize', () => handleWindowStateChange(window));
-  window.on('unmaximize', () => handleWindowStateChange(window));
+  window.on('unmaximize', () => {
+    restoreWindowBounds(window);
+    handleWindowStateChange(window);
+  });
   window.on('minimize', () => handleWindowStateChange(window));
-  window.on('restore', () => handleWindowStateChange(window));
+  window.on('restore', () => {
+    restoreWindowBounds(window);
+    handleWindowStateChange(window);
+  });
   window.on('enter-full-screen', () => handleWindowStateChange(window));
-  window.on('leave-full-screen', () => handleWindowStateChange(window));
+  window.on('leave-full-screen', () => {
+    restoreWindowBounds(window);
+    handleWindowStateChange(window);
+  });
+  window.on('moved', () => handleWindowStateChange(window));
 }
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
@@ -832,6 +868,19 @@ async function createWindow() {
   mainWindowCreated = true;
 
   initializeWindowStateHandlers(mainWindow);
+
+  if (!startInTray) {
+    if (windowConfig && windowConfig.maximized) {
+      mainWindow.maximize();
+    } else if (windowConfig && windowConfig.fullscreen) {
+      mainWindow.setFullScreen(true);
+    } else {
+      // Restore window bounds if available and not maximized or fullscreen
+      restoreWindowBounds(mainWindow);
+    }
+    mainWindow.show();
+  }
+
   setupSpellChecker(
     mainWindow,
     getPreferredSystemLocales(),
@@ -839,12 +888,7 @@ async function createWindow() {
     getResolvedMessagesLocale().i18n,
     getLogger()
   );
-  if (!startInTray && windowConfig && windowConfig.maximized) {
-    mainWindow.maximize();
-  }
-  if (!startInTray && windowConfig && windowConfig.fullscreen) {
-    mainWindow.setFullScreen(true);
-  }
+
   if (systemTrayService) {
     systemTrayService.setMainWindow(mainWindow);
   }
