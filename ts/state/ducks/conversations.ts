@@ -2773,6 +2773,31 @@ export function clearCancelledConversationVerification(
   };
 }
 
+function markConversationAsDeleted(conversationId: string): void {
+  log.info(`markConversationAsDeleted: Marking conversation ${conversationId} as deleted`);
+  const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
+  if (!deletedConversations.includes(conversationId)) {
+    deletedConversations.push(conversationId);
+    localStorage.setItem('deletedConversations', JSON.stringify(deletedConversations));
+  }
+}
+
+function isConversationDeleted(conversationId: string): boolean {
+  const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
+  return deletedConversations.includes(conversationId);
+}
+
+// TODO: Implement checks using isConversationDeleted in all places where conversations are loaded or displayed.
+// Example usage:
+// function loadConversation(conversationId: string) {
+//   if (isConversationDeleted(conversationId)) {
+//     log.info(`Skipping load of deleted conversation ${conversationId}`);
+//     return null;
+//   }
+//   // Proceed with loading the conversation
+//   // ...
+// }
+
 function composeSaveAvatarToDisk(
   avatarData: AvatarDataType
 ): ThunkAction<void, RootStateType, unknown, ComposeSaveAvatarActionType> {
@@ -3783,16 +3808,48 @@ function acceptConversation(
   };
 }
 
+function markConversationAsDeleted(conversationId: string): void {
+  log.info(`markConversationAsDeleted: Marking conversation ${conversationId} as deleted`);
+  const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
+  if (!deletedConversations.includes(conversationId)) {
+    deletedConversations.push(conversationId);
+    localStorage.setItem('deletedConversations', JSON.stringify(deletedConversations));
+  }
+}
+
+function isConversationDeleted(conversationId: string): boolean {
+  const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
+  return deletedConversations.includes(conversationId);
+}
+
+// TODO: Implement checks using isConversationDeleted in all places where conversations are loaded or displayed.
+// Example usage:
+// function loadConversation(conversationId: string) {
+//   if (isConversationDeleted(conversationId)) {
+//     log.info(`Skipping load of deleted conversation ${conversationId}`);
+//     return null;
+//   }
+//   // Proceed with loading the conversation
+//   // ...
+// }
+
 function removeConversation(conversationId: string): ShowToastActionType {
+  log.info(`removeConversation: Starting removal process for conversation ${conversationId}`);
   const conversation = window.ConversationController.get(conversationId);
   if (!conversation) {
+    log.error(`removeConversation: Conversation ${conversationId} not found`);
     throw new Error(
-      'acceptConversation: Expected a conversation to be found. Doing nothing'
+      'removeConversation: Expected a conversation to be found. Doing nothing'
     );
   }
 
+  log.info(`removeConversation: Removing contact for conversation ${conversationId}`);
   drop(conversation.removeContact());
 
+  log.info(`removeConversation: Marking conversation as deleted`);
+  markConversationAsDeleted(conversationId);
+
+  log.info(`removeConversation: Removal process completed for conversation ${conversationId}`);
   return {
     type: SHOW_TOAST,
     payload: {
