@@ -783,31 +783,43 @@ async function createWindow() {
     let wasMaximized = mainWindow.isMaximized();
 
     mainWindow.on('hide', () => {
-      if (!mainWindow.isMaximized()) {
-        lastSize = mainWindow.getSize();
+      try {
+        if (!mainWindow.isMaximized()) {
+          lastSize = mainWindow.getSize();
+        }
+        wasMaximized = mainWindow.isMaximized();
+        getLogger().info('Window hidden. Last size:', lastSize, 'Maximized:', wasMaximized);
+      } catch (error) {
+        getLogger().error('Error in hide event handler:', error);
       }
-      wasMaximized = mainWindow.isMaximized();
-      getLogger().info('Window hidden. Last size:', lastSize, 'Maximized:', wasMaximized);
     });
 
     mainWindow.on('show', () => {
-      if (wasMaximized) {
-        mainWindow.maximize();
-      } else if (lastSize[0] > 0 && lastSize[1] > 0) {
-        const displays = screen.getAllDisplays();
-        const currentDisplay = displays.find(display => display.bounds.contains(lastSize[0], lastSize[1]));
-        
-        if (currentDisplay) {
-          mainWindow.setSize(
-            Math.min(lastSize[0], currentDisplay.workAreaSize.width),
-            Math.min(lastSize[1], currentDisplay.workAreaSize.height)
-          );
-        } else {
-          mainWindow.setSize(lastSize[0], lastSize[1]);
+      try {
+        if (wasMaximized) {
+          mainWindow.maximize();
+        } else if (lastSize[0] > 0 && lastSize[1] > 0) {
+          const displays = screen.getAllDisplays();
+          const currentDisplay = displays.find(display => display.bounds.contains(lastSize[0], lastSize[1]));
+          
+          if (currentDisplay) {
+            mainWindow.setSize(
+              Math.min(lastSize[0], currentDisplay.workAreaSize.width),
+              Math.min(lastSize[1], currentDisplay.workAreaSize.height)
+            );
+          } else {
+            mainWindow.setSize(lastSize[0], lastSize[1]);
+          }
         }
+        getLogger().info('Window shown. Size set to:', mainWindow.getSize(), 'Maximized:', mainWindow.isMaximized());
+      } catch (error) {
+        getLogger().error('Error in show event handler:', error);
       }
-      getLogger().info('Window shown. Size set to:', mainWindow.getSize(), 'Maximized:', mainWindow.isMaximized());
     });
+
+    getLogger().info('Wayland-specific window handling enabled');
+  } else {
+    getLogger().info('Wayland-specific window handling not applicable for this environment');
   }
 
   // Handle Wayland-specific behavior
