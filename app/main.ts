@@ -151,30 +151,51 @@ function restoreWindowBounds(window: BrowserWindow): void {
 const handleWindowStateChange = debounce((window: BrowserWindow) => {
   getLogger().info('Window state changed');
   safelyStoreWindowBounds(window);
-}, 1000);  // Debounce for 1 second
+}, 250, { maxWait: 1000 });  // Debounce for 250ms, but invoke after 1 second max
 
 function initializeWindowStateHandlers(window: BrowserWindow): void {
-  window.on('show', () => {
-    restoreWindowBounds(window);
-    handleWindowStateChange(window);
+  const handlers = {
+    show: () => {
+      restoreWindowBounds(window);
+      handleWindowStateChange(window);
+    },
+    hide: () => handleWindowStateChange(window),
+    maximize: () => handleWindowStateChange(window),
+    unmaximize: () => {
+      restoreWindowBounds(window);
+      handleWindowStateChange(window);
+    },
+    minimize: () => handleWindowStateChange(window),
+    restore: () => {
+      restoreWindowBounds(window);
+      handleWindowStateChange(window);
+    },
+    'enter-full-screen': () => handleWindowStateChange(window),
+    'leave-full-screen': () => {
+      restoreWindowBounds(window);
+      handleWindowStateChange(window);
+    },
+    moved: () => handleWindowStateChange(window),
+  };
+
+  Object.entries(handlers).forEach(([event, handler]) => {
+    window.on(event as any, handler);
   });
-  window.on('hide', () => handleWindowStateChange(window));
-  window.on('maximize', () => handleWindowStateChange(window));
-  window.on('unmaximize', () => {
-    restoreWindowBounds(window);
-    handleWindowStateChange(window);
-  });
-  window.on('minimize', () => handleWindowStateChange(window));
-  window.on('restore', () => {
-    restoreWindowBounds(window);
-    handleWindowStateChange(window);
-  });
-  window.on('enter-full-screen', () => handleWindowStateChange(window));
-  window.on('leave-full-screen', () => {
-    restoreWindowBounds(window);
-    handleWindowStateChange(window);
-  });
-  window.on('moved', () => handleWindowStateChange(window));
+
+  // Handle display changes
+  screen.on('display-added', () => handleWindowStateChange(window));
+  screen.on('display-removed', () => handleWindowStateChange(window));
+  screen.on('display-metrics-changed', () => handleWindowStateChange(window));
+
+  // Cleanup function
+  return () => {
+    Object.entries(handlers).forEach(([event, handler]) => {
+      window.removeListener(event as any, handler);
+    });
+    screen.removeAllListeners('display-added');
+    screen.removeAllListeners('display-removed');
+    screen.removeAllListeners('display-metrics-changed');
+  };
 }
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
@@ -867,7 +888,7 @@ async function createWindow() {
 
   mainWindowCreated = true;
 
-  initializeWindowStateHandlers(mainWindow);
+  const cleanupWindowStateHandlers = initializeWindowStateHandlers(mainWindow);
 
   if (!startInTray) {
     if (windowConfig && windowConfig.maximized) {
@@ -880,6 +901,11 @@ async function createWindow() {
     }
     mainWindow.show();
   }
+
+  mainWindow.on('closed', () => {
+    cleanupWindowStateHandlers();
+    mainWindow = undefined;
+  });
 
   setupSpellChecker(
     mainWindow,
