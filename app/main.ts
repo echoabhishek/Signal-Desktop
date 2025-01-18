@@ -780,17 +780,33 @@ async function createWindow() {
   // Handle Wayland-specific behavior
   if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
     let lastSize = mainWindow.getSize();
+    let wasMaximized = mainWindow.isMaximized();
 
     mainWindow.on('hide', () => {
-      lastSize = mainWindow.getSize();
-      getLogger().info('Window hidden. Last size:', lastSize);
+      if (!mainWindow.isMaximized()) {
+        lastSize = mainWindow.getSize();
+      }
+      wasMaximized = mainWindow.isMaximized();
+      getLogger().info('Window hidden. Last size:', lastSize, 'Maximized:', wasMaximized);
     });
 
     mainWindow.on('show', () => {
-      if (lastSize[0] > 0 && lastSize[1] > 0) {
-        mainWindow.setSize(lastSize[0], lastSize[1]);
-        getLogger().info('Window shown. Size set to:', lastSize);
+      if (wasMaximized) {
+        mainWindow.maximize();
+      } else if (lastSize[0] > 0 && lastSize[1] > 0) {
+        const displays = screen.getAllDisplays();
+        const currentDisplay = displays.find(display => display.bounds.contains(lastSize[0], lastSize[1]));
+        
+        if (currentDisplay) {
+          mainWindow.setSize(
+            Math.min(lastSize[0], currentDisplay.workAreaSize.width),
+            Math.min(lastSize[1], currentDisplay.workAreaSize.height)
+          );
+        } else {
+          mainWindow.setSize(lastSize[0], lastSize[1]);
+        }
       }
+      getLogger().info('Window shown. Size set to:', mainWindow.getSize(), 'Maximized:', mainWindow.isMaximized());
     });
   }
 
