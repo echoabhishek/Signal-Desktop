@@ -248,6 +248,11 @@ function showWindow() {
   if (mainWindow.isVisible()) {
     focusAndForceToTop(mainWindow);
   } else {
+    const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
+    if (isWayland) {
+      const [width, height] = mainWindow.getSize();
+      mainWindow.setSize(width, height);
+    }
     mainWindow.show();
   }
 }
