@@ -8,6 +8,7 @@ import React from 'react';
 
 import type { ReadonlyDeep } from 'type-fest';
 import { ScrollDownButton, ScrollDownButtonVariant } from './ScrollDownButton';
+import { useFocusHandler } from '../../hooks/useFocusHandler';
 
 import type { LocalizerType, ThemeType } from '../../types/Util';
 import type { ConversationType } from '../../state/ducks/conversations';
@@ -184,10 +185,54 @@ type SnapshotType =
   | { scrollTop: number }
   | { scrollBottom: number };
 
-export class Timeline extends React.Component<
-  PropsType,
-  StateType,
-  SnapshotType
+function TimelineWrapper(props: PropsType) {
+  const hasJustGainedFocus = useFocusHandler();
+  const [shouldApplyScroll, setShouldApplyScroll] = React.useState(false);
+  const [newMessagesSinceLastFocus, setNewMessagesSinceLastFocus] = React.useState(false);
+
+  React.useEffect(() => {
+    if (hasJustGainedFocus) {
+      // Check for new messages since last focus
+      const lastFocusTime = localStorage.getItem('lastFocusTime');
+      const hasNewMessages = props.items.some(item => {
+        const message = window.MessageCache.getById(item);
+        return message && message.get('received_at') > Number(lastFocusTime);
+      });
+      setNewMessagesSinceLastFocus(hasNewMessages);
+
+      // Delay applying scroll
+      const timer = setTimeout(() => {
+        setShouldApplyScroll(true);
+      }, 500);
+
+      // Save current focus time
+      localStorage.setItem('lastFocusTime', Date.now().toString());
+
+      return () => clearTimeout(timer);
+    }
+  }, [hasJustGainedFocus, props.items]);
+
+  return (
+    <TimelineInner
+      {...props}
+      hasJustGainedFocus={hasJustGainedFocus}
+      shouldApplyScroll={shouldApplyScroll}
+      newMessagesSinceLastFocus={newMessagesSinceLastFocus}
+    />
+  );
+}
+
+export const Timeline = TimelineWrapper;
+
+interface TimelineInnerProps extends PropsType {
+  hasJustGainedFocus: boolean;
+  shouldApplyScroll: boolean;
+  newMessagesSinceLastFocus: boolean;
+}
+
+class TimelineInner extends React.Component<
+  TimelineInnerProps,
+  StateType
 > {
   readonly #containerRef = React.createRef<HTMLDivElement>();
   readonly #messagesRef = React.createRef<HTMLDivElement>();
@@ -605,38 +650,39 @@ export class Timeline extends React.Component<
     }
   }
 
-  public override componentDidUpdate(
-    prevProps: Readonly<PropsType>,
+public override componentDidUpdate(
+    prevProps: Readonly<TimelineInnerProps>,
     _prevState: Readonly<StateType>,
-    snapshot: Readonly<SnapshotType>
+    snapshot: SnapshotType
   ): void {
-    const {
-      conversationType: previousConversationType,
-      items: oldItems,
-      messageChangeCounter: previousMessageChangeCounter,
-      messageLoadingState: previousMessageLoadingState,
-    } = prevProps;
-    const {
-      conversationType,
-      discardMessages,
-      id,
-      items: newItems,
-      messageChangeCounter,
-      messageLoadingState,
-    } = this.props;
+    const { props, state } = this;
+    const { id, messageLoadingState, hasJustGainedFocus, shouldApplyScroll, newMessagesSinceLastFocus } = props;
+    const { containerElementRef } = state;
+    const containerEl = containerElementRef?.current;
 
-    const containerEl = this.#containerRef.current;
-    if (!this.#scrollerLock.isLocked() && containerEl && snapshot) {
-      if (snapshot === scrollToUnreadIndicator) {
+    if (!containerEl) {
+      return;
+    }
+
+    if (
+      !this.#scrollerLock.isLocked() &&
+      containerEl &&
+      snapshot !== null &&
+      !hasJustGainedFocus &&
+      shouldApplyScroll
+    ) {
+      if (newMessagesSinceLastFocus) {
+        scrollToBottom(containerEl);
+      } else if (snapshot === scrollToUnreadIndicator) {
         const lastSeenIndicatorEl = this.#lastSeenIndicatorRef.current;
         if (lastSeenIndicatorEl) {
           lastSeenIndicatorEl.scrollIntoView();
         } else {
-          scrollToBottom(containerEl);
           assertDev(
             false,
             '<Timeline> expected a last seen indicator but it was not found'
           );
+          scrollToBottom(containerEl);
         }
       } else if ('scrollToIndex' in snapshot) {
         this.#scrollToItemIndex(snapshot.scrollToIndex);
@@ -647,12 +693,34 @@ export class Timeline extends React.Component<
       }
     }
 
+    const {
+      conversationType: previousConversationType,
+      items: oldItems,
+      messageChangeCounter: previousMessageChangeCounter,
+      messageLoadingState: previousMessageLoadingState,
+    } = prevProps;
+    const {
+      conversationType,
+      discardMessages,
+      items: newItems,
+      messageChangeCounter,
+    } = props;
+
     // We know that all items will be in order and that items can only be added at either
     // end, so we can check for equality without checking each item in the array
     const haveItemsChanged =
       oldItems.length !== newItems.length ||
       oldItems.at(0) !== newItems.at(0) ||
       oldItems.at(-1) !== newItems.at(-1);
+
+    if (
+      haveItemsChanged ||
+      previousMessageChangeCounter !== messageChangeCounter ||
+      previousMessageLoadingState !== messageLoadingState ||
+      previousConversationType !== conversationType
+    ) {
+      discardMessages();
+    }
 
     if (haveItemsChanged) {
       this.#updateIntersectionObserver();
