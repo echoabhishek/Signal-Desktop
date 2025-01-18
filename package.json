@@ -4,13 +4,13 @@
   "productName": "Signal",
   "description": "Private messaging from your desktop",
   "desktopName": "signal.desktop",
-  "repository": "https://github.com/signalapp/Signal-Desktop.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/signalapp/Signal-Desktop.git"
+  },
   "version": "7.41.0-alpha.1",
   "license": "AGPL-3.0-only",
-  "author": {
-    "name": "Signal Messenger, LLC",
-    "email": "support@signal.org"
-  },
+  "author": "Signal Messenger, LLC <support@signal.org>",
   "browserslist": "last 1 chrome versions",
   "main": "app/main.js",
   "scripts": {
@@ -597,5 +597,13 @@
       "!node_modules/.cache",
       "sticker-creator/dist/**"
     ]
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/signalapp/Signal-Desktop/issues"
+  },
+  "homepage": "https://github.com/signalapp/Signal-Desktop#readme"
 }
