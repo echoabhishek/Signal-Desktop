@@ -776,23 +776,56 @@ mainWindow = new BrowserWindow(windowOptions);
 const initialSize = mainWindow.getSize();
 const initialPosition = mainWindow.getPosition();
 
+getLogger().info('Initial window size:', initialSize);
+getLogger().info('Initial window position:', initialPosition);
+
 // Add event listener to reset window size and position when shown
 mainWindow.on('show', () => {
+  getLogger().info('Window shown event triggered');
   // Only reset size and position if we're running on Wayland
   if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
     if (!mainWindow.isMaximized() && !mainWindow.isFullScreen()) {
+      getLogger().info('Resetting window size and position');
       mainWindow.setSize(initialSize[0], initialSize[1]);
       mainWindow.setPosition(initialPosition[0], initialPosition[1]);
+      getLogger().info('New window size:', mainWindow.getSize());
+      getLogger().info('New window position:', mainWindow.getPosition());
+    } else {
+      getLogger().info('Window is maximized or fullscreen, not resetting size/position');
     }
+  } else {
+    getLogger().info('Not running on Wayland, skipping size/position reset');
   }
 });
 
 // Store size and position before hiding
 mainWindow.on('hide', () => {
+  getLogger().info('Window hide event triggered');
   if (!mainWindow.isMaximized() && !mainWindow.isFullScreen()) {
     Object.assign(initialSize, mainWindow.getSize());
     Object.assign(initialPosition, mainWindow.getPosition());
+    getLogger().info('Updated stored window size:', initialSize);
+    getLogger().info('Updated stored window position:', initialPosition);
+  } else {
+    getLogger().info('Window is maximized or fullscreen, not updating stored size/position');
   }
+});
+
+// Log window state changes
+mainWindow.on('maximize', () => {
+  getLogger().info('Window maximized');
+});
+
+mainWindow.on('unmaximize', () => {
+  getLogger().info('Window unmaximized');
+});
+
+mainWindow.on('enter-full-screen', () => {
+  getLogger().info('Window entered full screen');
+});
+
+mainWindow.on('leave-full-screen', () => {
+  getLogger().info('Window left full screen');
 });
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);

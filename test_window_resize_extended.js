@@ -19,8 +19,17 @@ function createWindow() {
 
   win.on('show', () => {
     if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
-      win.setSize(initialSize[0], initialSize[1]);
-      win.setPosition(initialPosition[0], initialPosition[1]);
+      if (!win.isMaximized() && !win.isFullScreen()) {
+        win.setSize(initialSize[0], initialSize[1]);
+        win.setPosition(initialPosition[0], initialPosition[1]);
+      }
+    }
+  });
+
+  win.on('hide', () => {
+    if (!win.isMaximized() && !win.isFullScreen()) {
+      Object.assign(initialSize, win.getSize());
+      Object.assign(initialPosition, win.getPosition());
     }
   });
 
@@ -70,6 +79,35 @@ function createWindow() {
       }, i * 200);
     }
   }, 10000);
+
+  setTimeout(() => {
+    console.log('Test 5: Resize, hide, and show');
+    win.setSize(1000, 800);
+    win.hide();
+    setTimeout(() => {
+      win.show();
+      console.log('Window size after resize and show:', win.getSize());
+    }, 1000);
+  }, 13000);
+
+  setTimeout(() => {
+    console.log('Test 6: Move to second display (if available)');
+    if (externalDisplay) {
+      win.setBounds({
+        x: externalDisplay.bounds.x + 100,
+        y: externalDisplay.bounds.y + 100,
+        width: 800,
+        height: 600
+      });
+      win.hide();
+      setTimeout(() => {
+        win.show();
+        console.log('Window position after move and show:', win.getPosition());
+      }, 1000);
+    } else {
+      console.log('No external display available, skipping test 6');
+    }
+  }, 16000);
 }
 
 app.whenReady().then(createWindow);
