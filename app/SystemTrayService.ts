@@ -31,6 +31,21 @@ export class SystemTrayService {
   #isQuitting = false;
   #unreadCount = 0;
   #createTrayInstance: (icon: NativeImage) => Tray;
+  #windowBounds?: Electron.Rectangle;
+
+  #saveWindowBounds(): void {
+    if (this.#browserWindow) {
+      this.#windowBounds = this.#browserWindow.getBounds();
+      log.info('System tray service: Saved window bounds', this.#windowBounds);
+    }
+  }
+
+  #restoreWindowBounds(): void {
+    if (this.#browserWindow && this.#windowBounds) {
+      this.#browserWindow.setBounds(this.#windowBounds);
+      log.info('System tray service: Restored window bounds', this.#windowBounds);
+    }
+  }
 
   constructor({ i18n, createTrayInstance }: SystemTrayServiceOptionsType) {
     log.info('System tray service: created');
@@ -65,6 +80,9 @@ export class SystemTrayService {
     if (newBrowserWindow) {
       newBrowserWindow.on('show', this.#render);
       newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('resize', () => this.#saveWindowBounds());
+      newBrowserWindow.on('move', () => this.#saveWindowBounds());
+      this.#saveWindowBounds();
     }
 
     this.#browserWindow = newBrowserWindow;
@@ -174,6 +192,7 @@ export class SystemTrayService {
                     'System tray service: showing the window from the context menu'
                   );
                   if (this.#browserWindow) {
+                    this.#restoreWindowBounds();
                     this.#browserWindow.show();
                     focusAndForceToTop(this.#browserWindow);
                   }
@@ -223,6 +242,7 @@ export class SystemTrayService {
       if (browserWindow.isVisible()) {
         browserWindow.hide();
       } else {
+        this.#restoreWindowBounds();
         browserWindow.show();
         focusAndForceToTop(browserWindow);
       }
