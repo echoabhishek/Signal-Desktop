@@ -192,21 +192,52 @@ function resetWindowState(window: BrowserWindow): void {
   windowStateChangeCount = 0;
 }
 
-function checkWindowState(window: BrowserWindow) {
-  const isMinimized = window.isMinimized();
-  const isMaximized = window.isMaximized();
-  const isFullScreen = window.isFullScreen();
+function handleDPIChange(window: BrowserWindow): void {
   const bounds = window.getBounds();
   const display = screen.getDisplayMatching(bounds);
+  const scaleFactor = display.scaleFactor;
+  
+  const newBounds = {
+    x: Math.round(bounds.x / scaleFactor),
+    y: Math.round(bounds.y / scaleFactor),
+    width: Math.round(bounds.width / scaleFactor),
+    height: Math.round(bounds.height / scaleFactor),
+  };
 
-  getLogger().info('Window state check', {
-    isMinimized,
-    isMaximized,
-    isFullScreen,
-    bounds,
-    displayId: display.id,
-    isValidBounds: isValidWindowBounds(bounds, display),
-  });
+  if (!isValidWindowBounds(newBounds, display)) {
+    getLogger().warn('Invalid window bounds after DPI change, resetting window state');
+    resetWindowState(window);
+  } else {
+    setWindowBoundsSafely(window, newBounds);
+  }
+}
+
+function checkWindowState(window: BrowserWindow) {
+  try {
+    const isMinimized = window.isMinimized();
+    const isMaximized = window.isMaximized();
+    const isFullScreen = window.isFullScreen();
+    const bounds = window.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const isOnScreen = screen.getAllDisplays().some(d => isValidWindowBounds(bounds, d));
+
+    getLogger().info('Window state check', {
+      isMinimized,
+      isMaximized,
+      isFullScreen,
+      bounds,
+      displayId: display.id,
+      isValidBounds: isValidWindowBounds(bounds, display),
+      isOnScreen,
+    });
+
+    if (!isOnScreen) {
+      getLogger().warn('Window is off-screen, resetting window state');
+      resetWindowState(window);
+    }
+  } catch (error) {
+    getLogger().error('Error in checkWindowState:', Errors.toLogFormat(error));
+  }
 }
 
 const handleWindowStateChange = debounce((window: BrowserWindow) => {
@@ -274,7 +305,10 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
   // Handle display changes
   screen.on('display-added', () => handleWindowStateChange(window));
   screen.on('display-removed', () => handleWindowStateChange(window));
-  screen.on('display-metrics-changed', () => handleWindowStateChange(window));
+  screen.on('display-metrics-changed', () => {
+    handleWindowStateChange(window);
+    handleDPIChange(window);
+  });
 
   // Handle window moving to a different display
   let lastDisplayId = screen.getDisplayMatching(window.getBounds()).id;
@@ -284,6 +318,7 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
       getLogger().info('Window moved to a different display', { from: lastDisplayId, to: currentDisplayId });
       lastDisplayId = currentDisplayId;
       handleWindowStateChange(window);
+      handleDPIChange(window);
     }
   });
 
