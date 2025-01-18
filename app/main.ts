@@ -772,14 +772,26 @@ async function createWindow() {
   // Create the browser window.
 mainWindow = new BrowserWindow(windowOptions);
 
-// Store initial window size
+// Store initial window size and position
 const initialSize = mainWindow.getSize();
+const initialPosition = mainWindow.getPosition();
 
-// Add event listener to reset window size when shown
+// Add event listener to reset window size and position when shown
 mainWindow.on('show', () => {
-  // Only reset size if we're running on Wayland
+  // Only reset size and position if we're running on Wayland
   if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
-    mainWindow.setSize(initialSize[0], initialSize[1]);
+    if (!mainWindow.isMaximized() && !mainWindow.isFullScreen()) {
+      mainWindow.setSize(initialSize[0], initialSize[1]);
+      mainWindow.setPosition(initialPosition[0], initialPosition[1]);
+    }
+  }
+});
+
+// Store size and position before hiding
+mainWindow.on('hide', () => {
+  if (!mainWindow.isMaximized() && !mainWindow.isFullScreen()) {
+    Object.assign(initialSize, mainWindow.getSize());
+    Object.assign(initialPosition, mainWindow.getPosition());
   }
 });
   if (settingsChannel) {
