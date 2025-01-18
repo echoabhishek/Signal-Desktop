@@ -806,34 +806,36 @@ async function createWindow() {
   }
   const debouncedSaveStats = debounce(saveWindowStats, 500);
 
-  function captureWindowStats() {
-    if (!mainWindow) {
-      return;
-    }
+function captureWindowStats(isExplicitResize = false) {
+  if (!mainWindow) {
+    return;
+  }
 
-    const size = mainWindow.getSize();
-    const position = mainWindow.getPosition();
+  const size = mainWindow.getSize();
+  const position = mainWindow.getPosition();
 
-    const newWindowConfig = {
-      maximized: mainWindow.isMaximized(),
-      autoHideMenuBar: mainWindow.autoHideMenuBar,
-      fullscreen: mainWindow.isFullScreen(),
-      width: size[0],
-      height: size[1],
-      x: position[0],
-      y: position[1],
-    };
+  const newWindowConfig = {
+    maximized: mainWindow.isMaximized(),
+    autoHideMenuBar: mainWindow.autoHideMenuBar,
+    fullscreen: mainWindow.isFullScreen(),
+    width: size[0],
+    height: size[1],
+    x: position[0],
+    y: position[1],
+  };
 
-    if (
-      newWindowConfig.fullscreen !== windowConfig?.fullscreen ||
-      newWindowConfig.maximized !== windowConfig?.maximized
-    ) {
-      mainWindow.webContents.send('window:set-window-stats', {
-        isMaximized: newWindowConfig.maximized,
-        isFullScreen: newWindowConfig.fullscreen,
-      });
-    }
+  if (
+    newWindowConfig.fullscreen !== windowConfig?.fullscreen ||
+    newWindowConfig.maximized !== windowConfig?.maximized
+  ) {
+    mainWindow.webContents.send('window:set-window-stats', {
+      isMaximized: newWindowConfig.maximized,
+      isFullScreen: newWindowConfig.fullscreen,
+    });
+  }
 
+  // Only update window config if it's an explicit resize or if we're not on Wayland
+  if (isExplicitResize || process.env.XDG_SESSION_TYPE !== 'wayland') {
     // so if we need to recreate the window, we have the most recent settings
     windowConfig = newWindowConfig;
 
@@ -841,9 +843,10 @@ async function createWindow() {
       debouncedSaveStats();
     }
   }
+}
 
-  mainWindow.on('resize', captureWindowStats);
-  mainWindow.on('move', captureWindowStats);
+  mainWindow.on('resize', () => captureWindowStats(true));
+  mainWindow.on('move', () => captureWindowStats(true));
 
   if (!ciMode && config.get<boolean>('openDevTools')) {
     // Open the DevTools.

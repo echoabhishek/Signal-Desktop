@@ -63,8 +63,16 @@ export class SystemTrayService {
     }
 
     if (newBrowserWindow) {
-      newBrowserWindow.on('show', this.#render);
-      newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('show', () => {
+        this.#render();
+        // Prevent window size update on show
+        newBrowserWindow.setSize(newBrowserWindow.getSize()[0], newBrowserWindow.getSize()[1]);
+      });
+      newBrowserWindow.on('hide', () => {
+        this.#render();
+        // Prevent window size update on hide
+        newBrowserWindow.setSize(newBrowserWindow.getSize()[0], newBrowserWindow.getSize()[1]);
+      });
     }
 
     this.#browserWindow = newBrowserWindow;
