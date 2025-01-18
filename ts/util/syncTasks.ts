@@ -32,6 +32,8 @@ import {
 } from '../messageModifiers/ViewSyncs';
 import { safeParseUnknown } from './schemas';
 import { DataWriter } from '../sql/Client';
+import { isBlocked } from '../util/isBlocked';
+import type { ConversationModel } from '../models/conversations';
 
 const syncTaskDataSchema = z.union([
   deleteMessageSchema,
@@ -78,152 +80,155 @@ export async function queueSyncTasks(
 
   for (let i = 0, max = tasks.length; i < max; i += 1) {
     const task = tasks[i];
-    const { id, envelopeId, type, sentAt, data } = task;
-    const innerLogId = `${logId}(${toLogId(task)})`;
+    await processSyncTask(task, removeSyncTaskById);
+  }
+}
 
-    const schema = SCHEMAS_BY_TYPE[type];
-    if (!schema) {
-      log.error(`${innerLogId}: Schema not found. Deleting.`);
-      // eslint-disable-next-line no-await-in-loop
+export async function processSyncTask(
+  task: SyncTaskType,
+  removeSyncTaskById: (id: string) => Promise<void>
+): Promise<void> {
+  const { id, envelopeId, type, sentAt, data } = task;
+  const logId = `processSyncTask(${toLogId(task)})`;
+
+  const parseResult = safeParseUnknown(syncTaskDataSchema, data);
+  if (!parseResult.success) {
+    log.error(`${logId}: Failed to parse. Deleting.`);
+    await removeSyncTaskById(id);
+    return;
+  }
+
+  const { data: parsed } = parseResult;
+
+  if (parsed.type === 'delete-message') {
+    await DeletesForMe.onDelete({
+      conversation: parsed.conversation,
+      envelopeId,
+      message: parsed.message,
+      syncTaskId: id,
+      timestamp: sentAt,
+    });
+  } else if (parsed.type === 'delete-conversation' || parsed.type === 'delete-local-conversation') {
+    const { conversation: targetConversation } = parsed;
+    const conversation = getConversationFromTarget(targetConversation);
+    if (!conversation) {
+      log.error(`${logId}: Conversation not found!`);
       await removeSyncTaskById(id);
-      continue;
-    }
-    const parseResult = safeParseUnknown(syncTaskDataSchema, data);
-    if (!parseResult.success) {
-      log.error(
-        `${innerLogId}: Failed to parse. Deleting. Error: ${parseResult.error}`
-      );
-      // eslint-disable-next-line no-await-in-loop
-      await removeSyncTaskById(id);
-      continue;
+      return;
     }
 
-    const { data: parsed } = parseResult;
+    // Check if the conversation is blocked
+    if (isBlocked(conversation.attributes)) {
+      log.info(`${logId}: Conversation is blocked. Ensuring deletion.`);
+      await ensureBlockedConversationDeleted(conversation, id, removeSyncTaskById);
+      return;
+    }
 
-    if (parsed.type === 'delete-message') {
-      drop(
-        DeletesForMe.onDelete({
-          conversation: parsed.conversation,
-          envelopeId,
-          message: parsed.message,
-          syncTaskId: id,
-          timestamp: sentAt,
-        })
-      );
-    } else if (parsed.type === 'delete-conversation') {
-      const {
-        conversation: targetConversation,
-        mostRecentMessages,
-        mostRecentNonExpiringMessages,
-        isFullDelete,
-      } = parsed;
-      const conversation = getConversationFromTarget(targetConversation);
-      if (!conversation) {
-        log.error(`${innerLogId}: Conversation not found!`);
-        continue;
-      }
-      drop(
-        conversation.queueJob(innerLogId, async () => {
-          const promises = conversation.getSavePromises();
-          log.info(
-            `${innerLogId}: Waiting for message saves (${promises.length} items)...`
-          );
-          await Promise.all(promises);
+    // Proceed with existing delete logic
+    await conversation.performIfNotPermanentlyDeleted(async () => {
+      await conversation.queueJob(logId, async () => {
+        const promises = conversation.getSavePromises();
+        log.info(`${logId}: Waiting for message saves (${promises.length} items)...`);
+        await Promise.all(promises);
 
-          log.info(`${innerLogId}: Starting delete...`);
-          const result = await deleteConversation(
+        log.info(`${logId}: Starting delete...`);
+        let result;
+        if (parsed.type === 'delete-conversation') {
+          const { mostRecentMessages, mostRecentNonExpiringMessages, isFullDelete } = parsed;
+          result = await deleteConversation(
             conversation,
             mostRecentMessages,
             mostRecentNonExpiringMessages,
             isFullDelete,
-            innerLogId
+            logId
           );
-          if (result) {
-            await removeSyncTaskById(id);
-          }
-          log.info(`${innerLogId}: Done, result=${result}`);
-        })
-      );
-    } else if (parsed.type === 'delete-local-conversation') {
-      const { conversation: targetConversation } = parsed;
-      const conversation = getConversationFromTarget(targetConversation);
-      if (!conversation) {
-        log.error(`${innerLogId}: Conversation not found!`);
-        continue;
-      }
-      drop(
-        conversation.queueJob(innerLogId, async () => {
-          const promises = conversation.getSavePromises();
-          log.info(
-            `${innerLogId}: Waiting for message saves (${promises.length} items)...`
-          );
-          await Promise.all(promises);
-
-          log.info(`${innerLogId}: Starting delete...`);
-          const result = await deleteLocalOnlyConversation(
-            conversation,
-            innerLogId
-          );
-
-          // Note: we remove even with a 'false' result because we're only gonna
-          //   get more messages in this conversation from here!
+        } else {
+          result = await deleteLocalOnlyConversation(conversation, logId);
+        }
+        if (result) {
           await removeSyncTaskById(id);
-
-          log.info(`${innerLogId}: Done; result=${result}`);
-        })
-      );
-    } else if (parsed.type === 'delete-single-attachment') {
-      drop(
-        DeletesForMe.onDelete({
-          conversation: parsed.conversation,
-          deleteAttachmentData: {
-            clientUuid: parsed.clientUuid,
-            fallbackDigest: parsed.fallbackDigest,
-            fallbackPlaintextHash: parsed.fallbackPlaintextHash,
-          },
-          envelopeId,
-          message: parsed.message,
-          syncTaskId: id,
-          timestamp: sentAt,
-        })
-      );
-    } else if (
-      parsed.type === 'Delivery' ||
-      parsed.type === 'Read' ||
-      parsed.type === 'View'
-    ) {
-      drop(
-        onReceipt({
-          envelopeId,
-          receiptSync: parsed,
-          syncTaskId: id,
-        })
-      );
-    } else if (parsed.type === 'ReadSync') {
-      drop(
-        onReadSync({
-          envelopeId,
-          readSync: parsed,
-          syncTaskId: id,
-        })
-      );
-    } else if (parsed.type === 'ViewSync') {
-      drop(
-        onViewSync({
-          envelopeId,
-          viewSync: parsed,
-          syncTaskId: id,
-        })
-      );
-    } else {
-      const parsedType: never = parsed.type;
-      log.error(
-        `${innerLogId}: Encountered job of type ${parsedType}, removing`
-      );
-      // eslint-disable-next-line no-await-in-loop
+        }
+        log.info(`${logId}: Done, result=${result}`);
+      });
+    }, 'delete conversation');
+  } else if (parsed.type === 'delete-single-attachment') {
+    const { conversation: targetConversation, messageId, attachmentId } = parsed;
+    const conversation = getConversationFromTarget(targetConversation);
+    if (!conversation) {
+      log.error(`${logId}: Conversation not found!`);
       await removeSyncTaskById(id);
+      return;
     }
+    await conversation.performIfNotPermanentlyDeleted(async () => {
+      await conversation.queueJob(logId, async () => {
+        const promises = conversation.getSavePromises();
+        log.info(`${logId}: Waiting for message saves (${promises.length} items)...`);
+        await Promise.all(promises);
+
+        log.info(`${logId}: Starting delete...`);
+        const result = await DeletesForMe.onDeleteSingleAttachment({
+          conversation,
+          messageId,
+          attachmentId,
+          syncTaskId: id,
+        });
+        if (result) {
+          await removeSyncTaskById(id);
+        }
+        log.info(`${logId}: Done, result=${result}`);
+      });
+    }, 'delete single attachment');
+  } else if (parsed.type === 'Delivery' || parsed.type === 'Read' || parsed.type === 'View') {
+    await onReceipt({
+      envelopeId,
+      receipt: parsed,
+      syncTaskId: id,
+      timestamp: sentAt,
+    });
+  } else if (parsed.type === 'ReadSync') {
+    await onReadSync({
+      envelopeId,
+      readSync: parsed,
+      syncTaskId: id,
+      timestamp: sentAt,
+    });
+  } else if (parsed.type === 'ViewSync') {
+    await onViewSync({
+      envelopeId,
+      viewSync: parsed,
+      syncTaskId: id,
+      timestamp: sentAt,
+    });
+  } else {
+    throw new Error(`${logId}: Unknown type ${parsed.type}`);
   }
+}
+
+async function ensureBlockedConversationDeleted(
+  conversation: ConversationModel,
+  taskId: string,
+  removeSyncTaskById: (id: string) => Promise<void>
+) {
+  const logId = `ensureBlockedConversationDeleted(${conversation.idForLogging()})`;
+
+  await conversation.performIfNotPermanentlyDeleted(async () => {
+    log.info(`${logId}: Permanently deleting blocked conversation`);
+
+    // Delete all messages
+    await conversation.deleteAllMessages();
+
+    // Mark as permanently deleted
+    await conversation.markAsPermanentlyDeleted();
+
+    // Remove from the database
+    await DataWriter.removeConversation(conversation.id);
+
+    log.info(`${logId}: Blocked conversation permanently deleted`);
+  }, 'ensure blocked conversation deleted');
+
+  // Remove the sync task
+  await removeSyncTaskById(taskId);
+}
 
   // Note: There may still be some tasks in the database, but we expect to be
   // called again some time later to process them.

@@ -250,6 +250,27 @@ export class ConversationModel extends window.Backbone
 
   cachedProps?: ConversationType | null;
 
+  async markAsPermanentlyDeleted(): Promise<void> {
+    this.set('isPermanentlyDeleted', true);
+    await DataWriter.updateConversation(this.attributes);
+    log.info(`Conversation ${this.idForLogging()} marked as permanently deleted`);
+  }
+
+  isPermanentlyDeleted(): boolean {
+    return Boolean(this.get('isPermanentlyDeleted'));
+  }
+
+  async performIfNotPermanentlyDeleted<T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T | undefined> {
+    if (this.isPermanentlyDeleted()) {
+      log.warn(`Attempted ${operationName} on permanently deleted conversation ${this.idForLogging()}`);
+      return undefined;
+    }
+    return operation();
+  }
+
   oldCachedProps?: ConversationType | null;
 
   contactTypingTimers?: Record<
