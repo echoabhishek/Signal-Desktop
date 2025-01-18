@@ -576,6 +576,30 @@ function runWindowStateTest(window: BrowserWindow): void {
         height: currentBounds.height * 2
       });
     }},
+    { action: 'rapid-state-change', func: () => {
+      for (let i = 0; i < 20; i++) {
+        window.minimize();
+        window.restore();
+        window.maximize();
+        window.unmaximize();
+      }
+    }},
+    { action: 'multi-monitor-move', func: () => {
+      const displays = screen.getAllDisplays();
+      if (displays.length > 1) {
+        const secondDisplay = displays[1];
+        window.setBounds({
+          x: secondDisplay.bounds.x + 50,
+          y: secondDisplay.bounds.y + 50,
+          width: 800,
+          height: 600
+        });
+      }
+    }},
+    { action: 'edge-case-size', func: () => {
+      window.setSize(1, 1);
+      setTimeout(() => window.setSize(10000, 10000), 500);
+    }},
   ];
 
   let testIndex = 0;
@@ -588,18 +612,91 @@ function runWindowStateTest(window: BrowserWindow): void {
       setTimeout(() => {
         const bounds = window.getBounds();
         const display = screen.getDisplayMatching(bounds);
-        getLogger().info(`After ${test.action}:`, {
+        const state = {
           bounds,
           isMinimized: window.isMinimized(),
           isMaximized: window.isMaximized(),
           isFullScreen: window.isFullScreen(),
           isVisible: window.isVisible(),
           isOnScreen: isValidWindowBounds(bounds, display)
-        });
+        };
+        getLogger().info(`After ${test.action}:`, state);
+        if (!verifyWindowState(window)) {
+          getLogger().error(`Invalid window state after ${test.action}`, state);
+        }
         runNextTest();
       }, 1000);
     } else {
       getLogger().info('Comprehensive window state test completed.');
+    }
+  };
+
+  runNextTest();
+}
+
+function runRegressionTests(window: BrowserWindow): void {
+  getLogger().info('Starting regression tests...');
+
+  const tests = [
+    {
+      name: 'Hide and show multiple times',
+      func: () => {
+        for (let i = 0; i < 10; i++) {
+          window.hide();
+          window.show();
+        }
+      }
+    },
+    {
+      name: 'Rapid resize',
+      func: () => {
+        for (let i = 0; i < 20; i++) {
+          window.setSize(800 + i * 10, 600 + i * 10);
+        }
+      }
+    },
+    {
+      name: 'Move between displays',
+      func: () => {
+        const displays = screen.getAllDisplays();
+        displays.forEach((display, index) => {
+          window.setBounds({
+            x: display.bounds.x + 50,
+            y: display.bounds.y + 50,
+            width: 800,
+            height: 600
+          });
+        });
+      }
+    },
+    {
+      name: 'Fullscreen toggle',
+      func: () => {
+        for (let i = 0; i < 5; i++) {
+          window.setFullScreen(true);
+          window.setFullScreen(false);
+        }
+      }
+    }
+  ];
+
+  let testIndex = 0;
+  const runNextTest = () => {
+    if (testIndex < tests.length) {
+      const test = tests[testIndex];
+      getLogger().info(`Running regression test: ${test.name}`);
+      test.func();
+      testIndex++;
+      setTimeout(() => {
+        if (!verifyWindowState(window)) {
+          getLogger().error(`Regression test failed: ${test.name}`);
+        } else {
+          getLogger().info(`Regression test passed: ${test.name}`);
+        }
+        runNextTest();
+      }, 2000);
+    } else {
+      getLogger().info('Regression tests completed.');
     }
   };
 
@@ -628,6 +725,41 @@ function verifyWindowState(window: BrowserWindow): boolean {
   return isValid;
 }
 
+function generateWindowStateReport(window: BrowserWindow): string {
+  const bounds = window.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const isValid = verifyWindowState(window);
+
+  const report = `
+Window State Report:
+--------------------
+Valid State: ${isValid}
+Bounds: ${JSON.stringify(bounds)}
+Is Minimized: ${window.isMinimized()}
+Is Maximized: ${window.isMaximized()}
+Is Fullscreen: ${window.isFullScreen()}
+Is Visible: ${window.isVisible()}
+Is On Screen: ${isValidWindowBounds(bounds, display)}
+Current Display: ${display.id}
+All Displays: ${JSON.stringify(screen.getAllDisplays().map(d => ({ id: d.id, bounds: d.bounds })))}
+DPI Scale Factor: ${display.scaleFactor}
+--------------------
+  `;
+
+  getLogger().info('Window State Report generated:', report);
+  return report;
+}
+
+async function runAllTests(window: BrowserWindow): Promise<void> {
+  getLogger().info('Starting all window tests...');
+  
+  await runWindowStateTest(window);
+  await runRegressionTests(window);
+  
+  const finalReport = generateWindowStateReport(window);
+  getLogger().info('All window tests completed. Final report:', finalReport);
+}
+
 // Add this to your main window creation logic
 app.on('ready', async () => {
   // ... existing code ...
@@ -635,10 +767,31 @@ app.on('ready', async () => {
   const mainWindow = new BrowserWindow(/* your existing options */);
   initializeWindowStateHandlers(mainWindow);
 
-  // Run the self-test after a short delay to ensure everything is initialized
-  setTimeout(() => runWindowStateTest(mainWindow), 5000);
+  // Run all tests after a short delay to ensure everything is initialized
+  setTimeout(async () => {
+    await runAllTests(mainWindow);
+  }, 5000);
 
   // ... rest of your existing code ...
+});
+
+// Add a new IPC handler for manual test triggering
+ipc.handle('trigger-window-tests', async () => {
+  if (mainWindow) {
+    getLogger().info('Manually triggered window tests');
+    await runAllTests(mainWindow);
+    const finalReport = generateWindowStateReport(mainWindow);
+    return finalReport;
+  }
+  return 'Main window not available';
+});
+
+// Add a new IPC handler for generating window state report
+ipc.handle('generate-window-report', () => {
+  if (mainWindow) {
+    return generateWindowStateReport(mainWindow);
+  }
+  return 'Main window not available';
 });
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
