@@ -1863,3 +1863,484 @@
 39 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/extsprintf' ]
 40 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/fsevents
 41 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/fsevents' ]
+42 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-x64
+43 silly reify mark deleted [
+43 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-x64'
+43 silly reify ]
+44 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-ia32
+45 silly reify mark deleted [
+45 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-ia32'
+45 silly reify ]
+46 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-arm64
+47 silly reify mark deleted [
+47 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/win32-arm64'
+47 silly reify ]
+48 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/sunos-x64
+49 silly reify mark deleted [
+49 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/sunos-x64'
+49 silly reify ]
+50 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/openbsd-x64
+51 silly reify mark deleted [
+51 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/openbsd-x64'
+51 silly reify ]
+52 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/netbsd-x64
+53 silly reify mark deleted [
+53 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/netbsd-x64'
+53 silly reify ]
+54 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-s390x
+55 silly reify mark deleted [
+55 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-s390x'
+55 silly reify ]
+56 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-riscv64
+57 silly reify mark deleted [
+57 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-riscv64'
+57 silly reify ]
+58 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-ppc64
+59 silly reify mark deleted [
+59 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-ppc64'
+59 silly reify ]
+60 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-mips64el
+61 silly reify mark deleted [
+61 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-mips64el'
+61 silly reify ]
+62 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-loong64
+63 silly reify mark deleted [
+63 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-loong64'
+63 silly reify ]
+64 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-ia32
+65 silly reify mark deleted [
+65 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-ia32'
+65 silly reify ]
+66 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-arm64
+67 silly reify mark deleted [
+67 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-arm64'
+67 silly reify ]
+68 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-arm
+69 silly reify mark deleted [
+69 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/linux-arm'
+69 silly reify ]
+70 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/freebsd-x64
+71 silly reify mark deleted [
+71 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/freebsd-x64'
+71 silly reify ]
+72 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/freebsd-arm64
+73 silly reify mark deleted [
+73 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/freebsd-arm64'
+73 silly reify ]
+74 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/darwin-x64
+75 silly reify mark deleted [
+75 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/darwin-x64'
+75 silly reify ]
+76 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-x64
+77 silly reify mark deleted [
+77 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-x64'
+77 silly reify ]
+78 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-arm64
+79 silly reify mark deleted [
+79 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-arm64'
+79 silly reify ]
+80 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-arm
+81 silly reify mark deleted [
+81 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/android-arm'
+81 silly reify ]
+82 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/aix-ppc64
+83 silly reify mark deleted [
+83 silly reify   '/home/user/Signal-Desktop/node_modules/esbuild/node_modules/@esbuild/aix-ppc64'
+83 silly reify ]
+84 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/dmg-license
+85 silly reify mark deleted [
+85 silly reify   '/home/user/Signal-Desktop/node_modules/dmg-license',
+85 silly reify   '/home/user/Signal-Desktop/node_modules/.bin/dmg-license'
+85 silly reify ]
+86 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@types/plist
+87 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@types/plist' ]
+88 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@types/verror
+89 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@types/verror' ]
+90 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/crc
+91 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/crc' ]
+92 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/iconv-corefoundation
+93 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/iconv-corefoundation' ]
+94 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/verror
+95 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/verror' ]
+96 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/crc/node_modules/buffer
+97 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/crc/node_modules/buffer' ]
+98 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/cli-truncate
+99 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/cli-truncate' ]
+100 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/iconv-corefoundation/node_modules/node-addon-api
+101 silly reify mark deleted [
+101 silly reify   '/home/user/Signal-Desktop/node_modules/iconv-corefoundation/node_modules/node-addon-api'
+101 silly reify ]
+102 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/extsprintf
+103 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/extsprintf' ]
+104 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/cli-truncate/node_modules/slice-ansi
+105 silly reify mark deleted [
+105 silly reify   '/home/user/Signal-Desktop/node_modules/cli-truncate/node_modules/slice-ansi'
+105 silly reify ]
+106 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-win32-x64-msvc
+107 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-win32-x64-msvc' ]
+108 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-win32-ia32-msvc
+109 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-win32-ia32-msvc' ]
+110 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-win32-arm64-msvc
+111 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-win32-arm64-msvc' ]
+112 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-linux-arm64-musl
+113 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-linux-arm64-musl' ]
+114 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-linux-arm64-gnu
+115 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-linux-arm64-gnu' ]
+116 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-linux-arm-gnueabihf
+117 silly reify mark deleted [
+117 silly reify   '/home/user/Signal-Desktop/node_modules/@swc/core-linux-arm-gnueabihf'
+117 silly reify ]
+118 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-darwin-x64
+119 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-darwin-x64' ]
+120 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@swc/core-darwin-arm64
+121 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@swc/core-darwin-arm64' ]
+122 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@storybook/core-common/node_modules/@esbuild/darwin-arm64
+123 silly reify mark deleted [
+123 silly reify   '/home/user/Signal-Desktop/node_modules/@storybook/core-common/node_modules/@esbuild/darwin-arm64'
+123 silly reify ]
+124 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-x64
+125 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-x64' ]
+126 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-ia32
+127 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-ia32' ]
+128 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-arm64
+129 silly reify mark deleted [
+129 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-win32-arm64'
+129 silly reify ]
+130 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm64-musl
+131 silly reify mark deleted [
+131 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm64-musl'
+131 silly reify ]
+132 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm64-glibc
+133 silly reify mark deleted [
+133 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm64-glibc'
+133 silly reify ]
+134 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm-musl
+135 silly reify mark deleted [
+135 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm-musl'
+135 silly reify ]
+136 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm-glibc
+137 silly reify mark deleted [
+137 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-linux-arm-glibc'
+137 silly reify ]
+138 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-freebsd-x64
+139 silly reify mark deleted [
+139 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-freebsd-x64'
+139 silly reify ]
+140 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-darwin-x64
+141 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@parcel/watcher-darwin-x64' ]
+142 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-darwin-arm64
+143 silly reify mark deleted [
+143 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-darwin-arm64'
+143 silly reify ]
+144 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@parcel/watcher-android-arm64
+145 silly reify mark deleted [
+145 silly reify   '/home/user/Signal-Desktop/node_modules/@parcel/watcher-android-arm64'
+145 silly reify ]
+146 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-win32-x64-msvc
+147 silly reify mark deleted [
+147 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-win32-x64-msvc'
+147 silly reify ]
+148 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm64-musl
+149 silly reify mark deleted [
+149 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm64-musl'
+149 silly reify ]
+150 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm64-gnu
+151 silly reify mark deleted [
+151 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm64-gnu'
+151 silly reify ]
+152 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm-gnueabihf
+153 silly reify mark deleted [
+153 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-linux-arm-gnueabihf'
+153 silly reify ]
+154 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-darwin-x64
+155 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-darwin-x64' ]
+156 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-darwin-arm64
+157 silly reify mark deleted [
+157 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-darwin-arm64'
+157 silly reify ]
+158 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@napi-rs/canvas-android-arm64
+159 silly reify mark deleted [
+159 silly reify   '/home/user/Signal-Desktop/node_modules/@napi-rs/canvas-android-arm64'
+159 silly reify ]
+160 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/win32-x64
+161 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/win32-x64' ]
+162 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/win32-ia32
+163 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/win32-ia32' ]
+164 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/win32-arm64
+165 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/win32-arm64' ]
+166 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/sunos-x64
+167 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/sunos-x64' ]
+168 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/openbsd-x64
+169 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/openbsd-x64' ]
+170 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/openbsd-arm64
+171 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/openbsd-arm64' ]
+172 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/netbsd-x64
+173 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/netbsd-x64' ]
+174 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-s390x
+175 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-s390x' ]
+176 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-riscv64
+177 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-riscv64' ]
+178 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-ppc64
+179 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-ppc64' ]
+180 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-mips64el
+181 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-mips64el' ]
+182 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-loong64
+183 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-loong64' ]
+184 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-ia32
+185 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-ia32' ]
+186 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-arm64
+187 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-arm64' ]
+188 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/linux-arm
+189 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/linux-arm' ]
+190 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/freebsd-x64
+191 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/freebsd-x64' ]
+192 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/freebsd-arm64
+193 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/freebsd-arm64' ]
+194 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/darwin-x64
+195 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/darwin-x64' ]
+196 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/darwin-arm64
+197 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/darwin-arm64' ]
+198 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/android-x64
+199 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/android-x64' ]
+200 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/android-arm64
+201 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/android-arm64' ]
+202 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/android-arm
+203 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/android-arm' ]
+204 verbose reify failed optional dependency /home/user/Signal-Desktop/node_modules/@esbuild/aix-ppc64
+205 silly reify mark deleted [ '/home/user/Signal-Desktop/node_modules/@esbuild/aix-ppc64' ]
+206 warn skipping integrity check for git dependency ssh://git@github.com/electron/node-gyp.git
+207 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 1053ms
+208 silly audit report {
+208 silly audit report   got: [
+208 silly audit report     {
+208 silly audit report       id: 1088948,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-pfrx-2q88-qq97',
+208 silly audit report       title: 'Got allows a redirect to a UNIX socket',
+208 silly audit report       severity: 'moderate',
+208 silly audit report       vulnerable_versions: '<11.8.5',
+208 silly audit report       cwe: [],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   'body-parser': [
+208 silly audit report     {
+208 silly audit report       id: 1099520,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-qwcr-r2fm-qrc7',
+208 silly audit report       title: 'body-parser vulnerable to denial of service when url encoding is enabled',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '<1.20.3',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   cookie: [
+208 silly audit report     {
+208 silly audit report       id: 1099846,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-pxg6-pf52-xh8x',
+208 silly audit report       title: 'cookie accepts cookie name, path, and domain with out of bounds characters',
+208 silly audit report       severity: 'low',
+208 silly audit report       vulnerable_versions: '<0.7.0',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   'cross-spawn': [
+208 silly audit report     {
+208 silly audit report       id: 1100562,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-3xgq-45jj-v275',
+208 silly audit report       title: 'Regular Expression Denial of Service (ReDoS) in cross-spawn',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '<6.0.6',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     },
+208 silly audit report     {
+208 silly audit report       id: 1100563,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-3xgq-45jj-v275',
+208 silly audit report       title: 'Regular Expression Denial of Service (ReDoS) in cross-spawn',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '>=7.0.0 <7.0.5',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   electron: [
+208 silly audit report     {
+208 silly audit report       id: 1099652,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-7m48-wc93-9g85',
+208 silly audit report       title: 'ASAR Integrity bypass via filetype confusion in electron',
+208 silly audit report       severity: 'moderate',
+208 silly audit report       vulnerable_versions: '>=23.0.0-alpha.1 <=23.3.13',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   express: [
+208 silly audit report     {
+208 silly audit report       id: 1100530,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-qw6h-vgh9-j6wx',
+208 silly audit report       title: 'express vulnerable to XSS via response.redirect()',
+208 silly audit report       severity: 'low',
+208 silly audit report       vulnerable_versions: '<4.20.0',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   'path-to-regexp': [
+208 silly audit report     {
+208 silly audit report       id: 1101081,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-rhx6-c78j-4q9w',
+208 silly audit report       title: 'Unpatched `path-to-regexp` ReDoS in 0.1.x',
+208 silly audit report       severity: 'moderate',
+208 silly audit report       vulnerable_versions: '<0.1.12',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     },
+208 silly audit report     {
+208 silly audit report       id: 1099561,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-9wv6-86v2-598j',
+208 silly audit report       title: 'path-to-regexp outputs backtracking regular expressions',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '>=0.2.0 <1.9.0',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     },
+208 silly audit report     {
+208 silly audit report       id: 1099562,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-9wv6-86v2-598j',
+208 silly audit report       title: 'path-to-regexp outputs backtracking regular expressions',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '<0.1.10',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   'http-proxy-middleware': [
+208 silly audit report     {
+208 silly audit report       id: 1100223,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-c7qv-q95q-8v27',
+208 silly audit report       title: 'Denial of service in http-proxy-middleware',
+208 silly audit report       severity: 'high',
+208 silly audit report       vulnerable_versions: '<2.0.7',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   nanoid: [
+208 silly audit report     {
+208 silly audit report       id: 1101163,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-mwcw-c2x4-8c55',
+208 silly audit report       title: 'Predictable results in nanoid generation when given non-integer values',
+208 silly audit report       severity: 'moderate',
+208 silly audit report       vulnerable_versions: '<3.3.8',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   quill: [
+208 silly audit report     {
+208 silly audit report       id: 1098574,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-4943-9vgg-gr5r',
+208 silly audit report       title: 'Cross-site Scripting in quill',
+208 silly audit report       severity: 'moderate',
+208 silly audit report       vulnerable_versions: '<=1.3.7',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   send: [
+208 silly audit report     {
+208 silly audit report       id: 1100526,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-m6fv-jmcg-4jfg',
+208 silly audit report       title: 'send vulnerable to template injection that can lead to XSS',
+208 silly audit report       severity: 'low',
+208 silly audit report       vulnerable_versions: '<0.19.0',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ],
+208 silly audit report   'serve-static': [
+208 silly audit report     {
+208 silly audit report       id: 1100528,
+208 silly audit report       url: 'https://github.com/advisories/GHSA-cm22-4g7w-348p',
+208 silly audit report       title: 'serve-static vulnerable to template injection that can lead to XSS',
+208 silly audit report       severity: 'low',
+208 silly audit report       vulnerable_versions: '<1.16.0',
+208 silly audit report       cwe: [Array],
+208 silly audit report       cvss: [Object]
+208 silly audit report     }
+208 silly audit report   ]
+208 silly audit report }
+209 silly packumentCache corgi:https://registry.npmjs.org/got cache-miss
+210 silly packumentCache corgi:https://registry.npmjs.org/body-parser cache-miss
+211 silly packumentCache corgi:https://registry.npmjs.org/cookie cache-miss
+212 silly packumentCache corgi:https://registry.npmjs.org/cross-spawn cache-miss
+213 silly packumentCache corgi:https://registry.npmjs.org/electron cache-miss
+214 silly packumentCache corgi:https://registry.npmjs.org/express cache-miss
+215 silly packumentCache corgi:https://registry.npmjs.org/path-to-regexp cache-miss
+216 silly packumentCache corgi:https://registry.npmjs.org/http-proxy-middleware cache-miss
+217 silly packumentCache corgi:https://registry.npmjs.org/nanoid cache-miss
+218 silly packumentCache corgi:https://registry.npmjs.org/quill cache-miss
+219 silly packumentCache corgi:https://registry.npmjs.org/send cache-miss
+220 silly packumentCache corgi:https://registry.npmjs.org/serve-static cache-miss
+221 silly tarball no local data for zwitch@https://registry.npmjs.org/zwitch/-/zwitch-1.0.5.tgz. Extracting by manifest.
+222 silly tarball no local data for zod@https://registry.npmjs.org/zod/-/zod-3.23.8.tgz. Extracting by manifest.
+223 silly tarball no local data for yn@https://registry.npmjs.org/yn/-/yn-3.1.1.tgz. Extracting by manifest.
+224 silly tarball no local data for yocto-queue@https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz. Extracting by manifest.
+225 silly tarball no local data for yauzl@https://registry.npmjs.org/yauzl/-/yauzl-2.10.0.tgz. Extracting by manifest.
+226 silly tarball no local data for yargs-parser@https://registry.npmjs.org/yargs-parser/-/yargs-parser-20.2.9.tgz. Extracting by manifest.
+227 silly tarball no local data for yargs-unparser@https://registry.npmjs.org/yargs-unparser/-/yargs-unparser-2.0.0.tgz. Extracting by manifest.
+228 silly tarball no local data for yargs@https://registry.npmjs.org/yargs/-/yargs-17.7.2.tgz. Extracting by manifest.
+229 silly tarball no local data for yaml@https://registry.npmjs.org/yaml/-/yaml-1.10.2.tgz. Extracting by manifest.
+230 silly tarball no local data for yallist@https://registry.npmjs.org/yallist/-/yallist-4.0.0.tgz. Extracting by manifest.
+231 silly tarball no local data for yaeti@https://registry.npmjs.org/yaeti/-/yaeti-0.0.6.tgz. Extracting by manifest.
+232 silly tarball no local data for y18n@https://registry.npmjs.org/y18n/-/y18n-4.0.3.tgz. Extracting by manifest.
+233 silly tarball no local data for xtend@https://registry.npmjs.org/xtend/-/xtend-4.0.1.tgz. Extracting by manifest.
+234 silly tarball no local data for xmlcreate@https://registry.npmjs.org/xmlcreate/-/xmlcreate-2.0.4.tgz. Extracting by manifest.
+235 silly tarball no local data for xml@https://registry.npmjs.org/xml/-/xml-1.0.1.tgz. Extracting by manifest.
+236 silly tarball no local data for xdg-basedir@https://registry.npmjs.org/xdg-basedir/-/xdg-basedir-3.0.0.tgz. Extracting by manifest.
+237 silly tarball no local data for xmlbuilder@https://registry.npmjs.org/xmlbuilder/-/xmlbuilder-15.1.1.tgz. Extracting by manifest.
+238 silly tarball no local data for xcase@https://registry.npmjs.org/xcase/-/xcase-2.0.1.tgz. Extracting by manifest.
+239 silly tarball no local data for ws@https://registry.npmjs.org/ws/-/ws-8.18.0.tgz. Extracting by manifest.
+240 silly tarball no local data for write-file-atomic@https://registry.npmjs.org/write-file-atomic/-/write-file-atomic-6.0.0.tgz. Extracting by manifest.
+241 silly tarball no local data for wrappy@https://registry.npmjs.org/wrappy/-/wrappy-1.0.2.tgz. Extracting by manifest.
+242 silly tarball no local data for wrap-ansi-cjs@https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-7.0.0.tgz. Extracting by manifest.
+243 silly tarball no local data for workerpool@https://registry.npmjs.org/workerpool/-/workerpool-6.5.1.tgz. Extracting by manifest.
+244 silly tarball no local data for wrap-ansi@https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-7.0.0.tgz. Extracting by manifest.
+245 silly tarball no local data for wordwrap@https://registry.npmjs.org/wordwrap/-/wordwrap-1.0.0.tgz. Extracting by manifest.
+246 silly tarball no local data for wildcard@https://registry.npmjs.org/wildcard/-/wildcard-2.0.0.tgz. Extracting by manifest.
+247 silly tarball no local data for widest-line@https://registry.npmjs.org/widest-line/-/widest-line-2.0.1.tgz. Extracting by manifest.
+248 silly tarball no local data for wide-align@https://registry.npmjs.org/wide-align/-/wide-align-1.1.5.tgz. Extracting by manifest.
+249 silly tarball no local data for which-typed-array@https://registry.npmjs.org/which-typed-array/-/which-typed-array-1.1.11.tgz. Extracting by manifest.
+250 silly tarball no local data for which-module@https://registry.npmjs.org/which-module/-/which-module-2.0.0.tgz. Extracting by manifest.
+251 silly tarball no local data for which-boxed-primitive@https://registry.npmjs.org/which-boxed-primitive/-/which-boxed-primitive-1.0.2.tgz. Extracting by manifest.
+252 silly tarball no local data for which@https://registry.npmjs.org/which/-/which-1.3.1.tgz. Extracting by manifest.
+253 silly tarball no local data for whatwg-url@https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz. Extracting by manifest.
+254 silly tarball no local data for whatwg-encoding@https://registry.npmjs.org/whatwg-encoding/-/whatwg-encoding-2.0.0.tgz. Extracting by manifest.
+255 silly tarball no local data for websocket-extensions@https://registry.npmjs.org/websocket-extensions/-/websocket-extensions-0.1.4.tgz. Extracting by manifest.
+256 silly tarball no local data for websocket-driver@https://registry.npmjs.org/websocket-driver/-/websocket-driver-0.7.4.tgz. Extracting by manifest.
+257 silly tarball no local data for websocket@https://registry.npmjs.org/websocket/-/websocket-1.0.34.tgz. Extracting by manifest.
+258 silly tarball no local data for webpack-sources@https://registry.npmjs.org/webpack-sources/-/webpack-sources-3.2.3.tgz. Extracting by manifest.
+259 silly tarball no local data for webpack-merge@https://registry.npmjs.org/webpack-merge/-/webpack-merge-5.7.3.tgz. Extracting by manifest.
+260 silly tarball no local data for webpack-hot-middleware@https://registry.npmjs.org/webpack-hot-middleware/-/webpack-hot-middleware-2.26.1.tgz. Extracting by manifest.
+261 silly tarball no local data for webpack-dev-server@https://registry.npmjs.org/webpack-dev-server/-/webpack-dev-server-5.1.0.tgz. Extracting by manifest.
+262 silly tarball no local data for webpack-cli@https://registry.npmjs.org/webpack-cli/-/webpack-cli-5.1.4.tgz. Extracting by manifest.
+263 silly tarball no local data for webpack@https://registry.npmjs.org/webpack/-/webpack-5.96.1.tgz. Extracting by manifest.
+264 silly tarball no local data for webpack-dev-middleware@https://registry.npmjs.org/webpack-dev-middleware/-/webpack-dev-middleware-7.4.2.tgz. Extracting by manifest.
+265 silly tarball no local data for webidl-conversions@https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz. Extracting by manifest.
+266 silly tarball no local data for webpack-virtual-modules@https://registry.npmjs.org/webpack-virtual-modules/-/webpack-virtual-modules-0.6.2.tgz. Extracting by manifest.
+267 silly tarball no local data for wcwidth@https://registry.npmjs.org/wcwidth/-/wcwidth-1.0.1.tgz. Extracting by manifest.
+268 silly tarball no local data for wbuf@https://registry.npmjs.org/wbuf/-/wbuf-1.7.3.tgz. Extracting by manifest.
+269 silly tarball no local data for watchpack@https://registry.npmjs.org/watchpack/-/watchpack-2.4.2.tgz. Extracting by manifest.
+270 silly tarball no local data for warning@https://registry.npmjs.org/warning/-/warning-4.0.3.tgz. Extracting by manifest.
+271 silly tarball no local data for walker@https://registry.npmjs.org/walker/-/walker-1.0.8.tgz. Extracting by manifest.
+272 silly tarball no local data for wait-port@https://registry.npmjs.org/wait-port/-/wait-port-0.2.14.tgz. Extracting by manifest.
+273 silly tarball no local data for wait-on@https://registry.npmjs.org/wait-on/-/wait-on-8.0.1.tgz. Extracting by manifest.
+274 silly tarball no local data for vfile-message@https://registry.npmjs.org/vfile-message/-/vfile-message-2.0.4.tgz. Extracting by manifest.
+275 silly tarball no local data for vfile@https://registry.npmjs.org/vfile/-/vfile-4.2.1.tgz. Extracting by manifest.
+276 silly tarball no local data for verror@https://registry.npmjs.org/verror/-/verror-1.10.1.tgz. Extracting by manifest.
+277 silly tarball no local data for vary@https://registry.npmjs.org/vary/-/vary-1.1.2.tgz. Extracting by manifest.
+278 silly tarball no local data for value-equal@https://registry.npmjs.org/value-equal/-/value-equal-1.0.1.tgz. Extracting by manifest.
+279 silly tarball no local data for validate-npm-package-license@https://registry.npmjs.org/validate-npm-package-license/-/validate-npm-package-license-3.0.1.tgz. Extracting by manifest.
+280 silly tarball no local data for v8-to-istanbul@https://registry.npmjs.org/v8-to-istanbul/-/v8-to-istanbul-9.1.0.tgz. Extracting by manifest.
+281 silly tarball no local data for v8-compile-cache-lib@https://registry.npmjs.org/v8-compile-cache-lib/-/v8-compile-cache-lib-3.0.1.tgz. Extracting by manifest.
