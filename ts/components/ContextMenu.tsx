@@ -13,7 +13,7 @@ import type { Theme } from '../util/theme';
 import type { LocalizerType } from '../types/Util';
 import { getClassNamesFor } from '../util/getClassNamesFor';
 import { themeClassName } from '../util/theme';
-import { handleOutsideClick } from '../util/handleOutsideClick';
+import { OutsideClickHandler } from './OutsideClickHandler';
 
 export type ContextMenuOptionType<T> = Readonly<{
   description?: string;
@@ -75,27 +75,26 @@ export function ContextMenu<T>({
   value,
 }: PropsType<T>): JSX.Element {
   const [isMenuShowing, setIsMenuShowing] = useState<boolean>(false);
-  const [focusedIndex, setFocusedIndex] = useState<number | undefined>(
-    undefined
-  );
-  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(
-    null
-  );
+  const [focusedIndex, setFocusedIndex] = useState<number | undefined>(undefined);
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
 
   const virtualElement = useRef<VirtualElement>(generateVirtualElement(0, 0));
 
-  const [referenceElement, setReferenceElement] =
-    useState<HTMLButtonElement | null>(null);
+  const [referenceElement, setReferenceElement] = useState<HTMLButtonElement | null>(null);
 
-  const { styles, attributes } = usePopper(
-    virtualElement.current,
-    popperElement,
-    {
-      placement: 'top-start',
-      strategy: 'fixed',
-      ...popperOptions,
+  const { styles, attributes } = usePopper(virtualElement.current, popperElement, {
+    placement: 'top-start',
+    strategy: 'fixed',
+    ...popperOptions,
+  });
+
+  const handleOutsideClick = () => {
+    setIsMenuShowing(false);
+    setFocusedIndex(undefined);
+    if (closeCurrentOpenContextMenu) {
+      closeCurrentOpenContextMenu();
     }
-  );
+  };
 
   // In Electron v23+, new elements added to the DOM may not trigger a recalculation of
   // draggable regions, so if a ContextMenu is shown on top of a draggable region, its
@@ -357,5 +356,9 @@ export function ContextMenu<T>({
       </div>
     );
   }
-  return buttonNode;
+  return (
+    <OutsideClickHandler onOutsideClick={handleOutsideClick}>
+      {buttonNode}
+    </OutsideClickHandler>
+  );
 }
