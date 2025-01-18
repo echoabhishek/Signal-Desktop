@@ -27,13 +27,20 @@ export function restoreWindowState(window: BrowserWindow): void {
 
   const { bounds, isMaximized, isFullScreen } = savedWindowState;
 
+  // First, set the window bounds
+  window.setBounds(bounds);
+
+  // Then, set the window state (maximized or fullscreen)
   if (isFullScreen) {
     window.setFullScreen(true);
   } else if (isMaximized) {
     window.maximize();
-  } else {
-    window.setBounds(bounds);
   }
 
   log.info('Window state restored:', savedWindowState);
+}
+
+export function clearWindowState(): void {
+  savedWindowState = null;
+  log.info('Window state cleared');
 }
