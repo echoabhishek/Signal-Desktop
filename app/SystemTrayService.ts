@@ -45,6 +45,8 @@ export class SystemTrayService {
    * functionality. It attaches event listeners to the window to manage the hide/show
    * toggle in the tray's context menu.
    */
+  #windowSize: { width: number; height: number } | null = null;
+
   setMainWindow(newBrowserWindow: undefined | BrowserWindow): void {
     const oldBrowserWindow = this.#browserWindow;
     if (oldBrowserWindow === newBrowserWindow) {
@@ -58,19 +60,37 @@ export class SystemTrayService {
     );
 
     if (oldBrowserWindow) {
-      oldBrowserWindow.off('show', this.#render);
-      oldBrowserWindow.off('hide', this.#render);
+      oldBrowserWindow.off('show', this.#handleShow);
+      oldBrowserWindow.off('hide', this.#handleHide);
     }
 
     if (newBrowserWindow) {
-      newBrowserWindow.on('show', this.#render);
-      newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('show', this.#handleShow);
+      newBrowserWindow.on('hide', this.#handleHide);
     }
 
     this.#browserWindow = newBrowserWindow;
 
     this.#render();
   }
+
+  #handleShow = (): void => {
+    if (this.#browserWindow && this.#windowSize) {
+      this.#browserWindow.setSize(this.#windowSize.width, this.#windowSize.height);
+      this.#windowSize = null;
+    }
+    log.info('Window shown');
+    this.#render();
+  };
+
+  #handleHide = (): void => {
+    if (this.#browserWindow) {
+      const [width, height] = this.#browserWindow.getSize();
+      this.#windowSize = { width, height };
+      log.info(`Window hidden. Size before hide: ${width}x${height}`);
+    }
+    this.#render();
+  };
 
   /**
    * Enable or disable the tray icon. Note: if there is no associated browser window (see

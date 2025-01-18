@@ -98,6 +98,8 @@ import * as sqlChannels from './sql_channel';
 import * as windowState from './window_state';
 import type { CreateTemplateOptionsType } from './menu';
 import { createTemplate } from './menu';
+
+const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
 import { isProduction } from '../ts/util/version';
@@ -677,100 +679,56 @@ async function safeLoadURL(window: BrowserWindow, url: string): Promise<void> {
   }
 }
 
-async function createWindow() {
-  const usePreloadBundle =
-    !isTestEnvironment(getEnvironment()) || forcePreloadBundle;
-
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: maxWidth, height: maxHeight } = primaryDisplay.workAreaSize;
-  const width = windowConfig
-    ? Math.min(windowConfig.width, maxWidth)
-    : DEFAULT_WIDTH;
-  const height = windowConfig
-    ? Math.min(windowConfig.height, maxHeight)
-    : DEFAULT_HEIGHT;
-
-  const windowOptions: Electron.BrowserWindowConstructorOptions = {
+function createWindow() {
+  const { screen } = electron;
+  const windowOptions: BrowserWindowOptions = {
     show: false,
-    width,
-    height,
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     autoHideMenuBar: false,
-    titleBarStyle: mainTitleBarStyle,
-    backgroundColor: isTestEnvironment(getEnvironment())
-      ? '#ffffff' // Tests should always be rendered on a white background
-      : await getBackgroundColor({ signalColors: true }),
+    backgroundColor: '#3a76f0',
     webPreferences: {
       ...defaultWebPrefs,
       nodeIntegration: false,
       nodeIntegrationInWorker: false,
-      sandbox: false,
-      contextIsolation: !isTestEnvironment(getEnvironment()),
-      preload: join(
-        __dirname,
-        usePreloadBundle
-          ? '../preload.wrapper.js'
-          : '../ts/windows/main/preload.js'
-      ),
+      contextIsolation: true,
+      preload: join(__dirname, '../ts/windows/main/preload.js'),
+      sandbox: true,
+      // We are not in the sandbox here, but we don't need this in the preload script
+      nativeWindowOpen: true,
       spellcheck: await getSpellCheckSetting(),
-      backgroundThrottling: true,
-      disableBlinkFeatures: 'Accelerated2dCanvas,AcceleratedSmallCanvases',
     },
     icon: windowIcon,
-    ...pick(windowConfig, ['autoHideMenuBar', 'x', 'y']),
+    ...loadWindowState(),
   };
 
-  if (!isNumber(windowOptions.width) || windowOptions.width < MIN_WIDTH) {
-    windowOptions.width = DEFAULT_WIDTH;
-  }
-  if (!isNumber(windowOptions.height) || windowOptions.height < MIN_HEIGHT) {
-    windowOptions.height = DEFAULT_HEIGHT;
-  }
-  if (!isBoolean(windowOptions.autoHideMenuBar)) {
-    delete windowOptions.autoHideMenuBar;
+  if (!windowOptions.fullscreen && windowOptions.maximized) {
+    delete windowOptions.width;
+    delete windowOptions.height;
   }
 
-  const startInTray =
-    isTestEnvironment(getEnvironment()) ||
-    (await systemTraySettingCache.get()) ===
-      SystemTraySetting.MinimizeToAndStartInSystemTray;
-
-  const haveFullWindowsBounds =
-    isNumber(windowOptions.x) &&
-    isNumber(windowOptions.y) &&
-    isNumber(windowOptions.width) &&
-    isNumber(windowOptions.height);
-  if (haveFullWindowsBounds) {
-    getLogger().info(
-      `visibleOnAnyScreen(window): x=${windowOptions.x}, y=${windowOptions.y}, ` +
-        `width=${windowOptions.width}, height=${windowOptions.height}`
-    );
-
-    const visibleOnAnyScreen = some(screen.getAllDisplays(), display => {
-      const displayBounds = get(display, 'bounds');
-      getLogger().info(
-        `visibleOnAnyScreen(display #${display.id}): ` +
-          `x=${displayBounds.x}, y=${displayBounds.y}, ` +
-          `width=${displayBounds.width}, height=${displayBounds.height}`
-      );
-
-      return isVisible(windowOptions as BoundsType, displayBounds);
-    });
-    if (!visibleOnAnyScreen) {
-      getLogger().info('visibleOnAnyScreen: Location reset needed');
-      delete windowOptions.x;
-      delete windowOptions.y;
-    }
+  if (windowOptions.fullscreen) {
+    windowOptions.maximized = false;
   }
 
-  getLogger().info(
-    'Initializing BrowserWindow config:',
+  if (isWayland) {
+    windowOptions.x = undefined;
+    windowOptions.y = undefined;
+  }
+
+  logger.info(
+    'Initializing BrowserWindow config: %s',
     JSON.stringify(windowOptions)
   );
 
   // Create the browser window.
   mainWindow = new BrowserWindow(windowOptions);
+
+  if (isWayland) {
+    mainWindow.setMinimizable(false);
+  }
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);
   }
@@ -792,6 +750,12 @@ async function createWindow() {
   if (systemTrayService) {
     systemTrayService.setMainWindow(mainWindow);
   }
+
+  // Log window resize events
+  mainWindow.on('resize', () => {
+    const [width, height] = mainWindow.getSize();
+    logger.info(`Window resized to: ${width}x${height}`);
+  });
 
   function saveWindowStats() {
     if (!windowConfig) {
