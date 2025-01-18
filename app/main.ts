@@ -150,6 +150,11 @@ let logger: LoggerType | undefined;
 let preferredSystemLocales: Array<string> | undefined;
 let localeOverride: string | null | undefined;
 
+// Variables for storing window size on Wayland
+// This is needed to prevent the window from growing when hidden and reopened
+let storedWindowSize: { width: number; height: number } | undefined;
+const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
+
 let resolvedTranslationsLocale: LocaleType | undefined;
 let settingsChannel: SettingsChannel | undefined;
 
@@ -157,6 +162,13 @@ const activeWindows = new Set<BrowserWindow>();
 
 function getMainWindow() {
   return mainWindow;
+}
+
+function storeWindowSizeBeforeHide() {
+  if (isWayland && mainWindow) {
+    const [width, height] = mainWindow.getSize();
+    storedWindowSize = { width, height };
+  }
 }
 
 const development =
@@ -248,6 +260,9 @@ function showWindow() {
   if (mainWindow.isVisible()) {
     focusAndForceToTop(mainWindow);
   } else {
+    if (isWayland && storedWindowSize) {
+      mainWindow.setSize(storedWindowSize.width, storedWindowSize.height);
+    }
     mainWindow.show();
   }
 }
@@ -909,9 +924,13 @@ async function createWindow() {
      */
     if (mainWindow) {
       if (mainWindow.isFullScreen()) {
-        mainWindow.once('leave-full-screen', () => mainWindow?.hide());
+mainWindow.once('leave-full-screen', () => {
+  storeWindowSizeBeforeHide();
+  mainWindow?.hide();
+});
         mainWindow.setFullScreen(false);
       } else {
+        storeWindowSizeBeforeHide();
         mainWindow.hide();
       }
     }
