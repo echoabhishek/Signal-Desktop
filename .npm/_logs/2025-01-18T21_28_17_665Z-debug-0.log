@@ -11,3 +11,9 @@
 10 verbose logfile /home/user/.npm/_logs/2025-01-18T21_28_17_665Z-debug-0.log
 11 silly packumentCache heap:2114453504 maxSize:528613376 maxEntrySize:264306688
 12 silly logfile done cleaning log files
+13 silly idealTree buildDeps
+14 warn EBADENGINE Unsupported engine {
+14 warn EBADENGINE   package: 'signal-desktop@7.41.0-alpha.1',
+14 warn EBADENGINE   required: { node: '20.18.1' },
+14 warn EBADENGINE   current: { node: 'v20.18.0', npm: '10.8.2' }
+14 warn EBADENGINE }
