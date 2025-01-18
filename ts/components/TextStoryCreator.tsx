@@ -185,6 +185,13 @@ export function TextStoryCreator({
   const hasLinkPreviewApplied = linkPreviewApplied !== LinkPreviewApplied.None;
   const [linkPreviewInputValue, setLinkPreviewInputValue] = useState('');
 
+  const linkPreviewInputPopupRef = useRef<HTMLDivElement>(null);
+
+  const [linkPreviewInputPopperButtonRef, setLinkPreviewInputPopperButtonRef] =
+    useState<HTMLButtonElement | null>(null);
+  const [linkPreviewInputPopperRef, setLinkPreviewInputPopperRef] =
+    useState<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (!linkPreviewInputValue) {
       return;
@@ -234,12 +241,21 @@ export function TextStoryCreator({
     });
   }, [linkPreview, text]);
 
+  useEffect(() => {
+    if (linkPreviewApplied !== LinkPreviewApplied.None && linkPreviewInputPopupRef.current) {
+      const removeListener = handleOutsideClick(
+        linkPreviewInputPopupRef.current,
+        () => {
+          setLinkPreviewApplied(LinkPreviewApplied.None);
+        }
+      );
+      return removeListener;
+    }
+    return undefined;
+  }, [linkPreviewApplied]);
+
   const [isLinkPreviewInputShowing, setIsLinkPreviewInputShowing] =
     useState(false);
-  const [linkPreviewInputPopperButtonRef, setLinkPreviewInputPopperButtonRef] =
-    useState<HTMLButtonElement | null>(null);
-  const [linkPreviewInputPopperRef, setLinkPreviewInputPopperRef] =
-    useState<HTMLDivElement | null>(null);
 
   const linkPreviewInputPopper = usePopper(
     linkPreviewInputPopperButtonRef,
@@ -542,13 +558,13 @@ export function TextStoryCreator({
                 ref={setLinkPreviewInputPopperButtonRef}
                 type="button"
               />
-              {isLinkPreviewInputShowing && (
+               {isLinkPreviewInputShowing && (
                 <div
+                  ref={linkPreviewInputPopupRef}
                   className={classNames(
                     'StoryCreator__popper StoryCreator__link-preview-input-popper',
                     themeClassName(Theme.Dark)
                   )}
-                  ref={setLinkPreviewInputPopperRef}
                   style={linkPreviewInputPopper.styles.popper}
                   {...linkPreviewInputPopper.attributes.popper}
                 >
