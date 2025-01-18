@@ -141,11 +141,26 @@ const {
 // We have to run this in background.js, after all backbone models and collections on
 //   Whisper.* have been created. Once those are in typescript we can use more reasonable
 //   require statements for referencing these things, giving us more flexibility here.
-export function start(): void {
-  const conversations = new window.Whisper.ConversationCollection();
+export function start(isTest = false): ConversationController {
+  const conversations = isTest
+    ? new Map()
+    : new window.Whisper.ConversationCollection();
 
-  window.ConversationController = new ConversationController(conversations);
-  window.getConversations = () => conversations;
+  const controller = new ConversationController(conversations);
+
+  if (!isTest) {
+    window.ConversationController = controller;
+    window.getConversations = () => conversations;
+  }
+
+  // Run the test method if in test mode
+  if (isTest) {
+    controller.testConversationDeletion().catch(error => {
+      console.error('Test failed:', error);
+    });
+  }
+
+  return controller;
 }
 
 export class ConversationController {
@@ -247,7 +262,17 @@ export class ConversationController {
     }
 
     // This function takes null just fine. Backbone typings are too restrictive.
-    return this._conversations.get(id as string);
+    const conversation = this._conversations.get(id as string);
+    if (conversation && conversation.get('permanentlyDeleted')) {
+      log.warn(`Attempted to retrieve permanently deleted conversation: ${id}`);
+      return undefined;
+    }
+    if (!conversation) {
+      log.info(`Conversation not found: ${id}`);
+    } else {
+      log.info(`Retrieved conversation: ${id}, permanentlyDeleted: ${conversation.get('permanentlyDeleted')}`);
+    }
+    return conversation;
   }
 
   getAll(): Array<ConversationModel> {
@@ -257,12 +282,84 @@ export class ConversationController {
   dangerouslyCreateAndAdd(
     attributes: Partial<ConversationAttributesType>
   ): ConversationModel {
+    const existing = this._conversations.get(attributes.id);
+    if (existing && existing.get('permanentlyDeleted')) {
+      // If the conversation exists but is permanently deleted, we'll remove it first
+      this._conversations.remove(existing);
+    }
     return this._conversations.add(attributes);
   }
 
   dangerouslyRemoveById(id: string): void {
     this._conversations.remove(id);
     this._conversations.resetLookups();
+  }
+
+  async permanentlyDeleteConversation(id: string): Promise<void> {
+    const conversation = this.get(id);
+    if (conversation) {
+      conversation.set('permanentlyDeleted', true);
+      await updateConversation(conversation.attributes);
+      log.info(`Conversation ${id} has been permanently deleted.`);
+    }
+  }
+
+  async removeConversation(id: string): Promise<void> {
+    try {
+      const conversation = this.get(id);
+      if (!conversation) {
+        log.warn(`Attempted to remove non-existent conversation: ${id}`);
+        return;
+      }
+      
+      if (conversation.get('permanentlyDeleted')) {
+        log.warn(`Attempted to remove already permanently deleted conversation: ${id}`);
+        return; // Don't proceed with removal if already permanently deleted
+      }
+      
+      await this.permanentlyDeleteConversation(id);
+      
+      await removeConversation(id);
+      this._conversations.remove(id);
+      this._conversations.resetLookups();
+      log.info(`Conversation ${id} has been removed and permanently deleted.`);
+    } catch (error) {
+      log.error(`Failed to remove conversation ${id}:`, Errors.toLogFormat(error));
+      throw error;
+    }
+  }
+
+  // This method should be used instead of the imported removeConversation
+  static async remove(id: string): Promise<void> {
+    const instance = window.ConversationController;
+    await instance.removeConversation(id);
+  }
+
+  // Test method for conversation deletion
+  async testConversationDeletion(): Promise<void> {
+    const testId = 'test_id';
+    
+    // Create a new conversation
+    const conversation = this.getOrCreate(testId, 'private');
+    log.info(`Test: Created conversation: ${conversation.id}`);
+
+    // Permanently delete the conversation
+    await this.removeConversation(conversation.id);
+    log.info(`Test: Removed conversation: ${conversation.id}`);
+
+    // Attempt to retrieve the deleted conversation
+    const retrievedConversation = this.get(conversation.id);
+    log.info(`Test: Retrieved deleted conversation: ${retrievedConversation ? retrievedConversation.id : 'undefined'}`);
+
+    // Attempt to create a new conversation with the same identifier
+    const newConversation = this.getOrCreate(testId, 'private');
+    log.info(`Test: Created new conversation with same identifier: ${newConversation.id}`);
+
+    // Attempt to remove the conversation again
+    await this.removeConversation(conversation.id);
+    log.info(`Test: Attempted to remove already deleted conversation: ${conversation.id}`);
+
+    log.info('Test: Conversation deletion test completed');
   }
 
   getOrCreate(
@@ -287,78 +384,93 @@ export class ConversationController {
     }
 
     let conversation = this._conversations.get(identifier);
+    if (conversation && conversation.get('permanentlyDeleted')) {
+      log.warn(`Attempted to get or create a permanently deleted conversation: ${identifier}`);
+      conversation = undefined;
+    }
+
     if (conversation) {
+      log.info(`Retrieved existing conversation: ${identifier}, permanentlyDeleted: ${conversation.get('permanentlyDeleted')}`);
       return conversation;
     }
+
+    log.info(`Creating new conversation of type ${type} with identifier ${identifier}`);
 
     const id = generateUuid();
 
-    if (type === 'group') {
-      conversation = this._conversations.add({
-        id,
-        serviceId: undefined,
-        e164: undefined,
-        groupId: identifier,
-        type,
-        version: 2,
-        ...additionalInitialProps,
-      });
-    } else if (isServiceIdString(identifier)) {
-      conversation = this._conversations.add({
-        id,
-        serviceId: identifier,
-        e164: undefined,
-        groupId: undefined,
-        type,
-        version: 2,
-        ...additionalInitialProps,
-      });
-    } else {
-      conversation = this._conversations.add({
-        id,
-        serviceId: undefined,
-        e164: identifier,
-        groupId: undefined,
-        type,
-        version: 2,
-        ...additionalInitialProps,
-      });
-    }
+    try {
+      if (type === 'group') {
+        conversation = this._conversations.add({
+          id,
+          serviceId: undefined,
+          e164: undefined,
+          groupId: identifier,
+          type,
+          version: 2,
+          ...additionalInitialProps,
+        });
+      } else if (isServiceIdString(identifier)) {
+        conversation = this._conversations.add({
+          id,
+          serviceId: identifier,
+          e164: undefined,
+          groupId: undefined,
+          type,
+          version: 2,
+          ...additionalInitialProps,
+        });
+      } else {
+        conversation = this._conversations.add({
+          id,
+          serviceId: undefined,
+          e164: identifier,
+          groupId: undefined,
+          type,
+          version: 2,
+          ...additionalInitialProps,
+        });
+      }
 
-    const create = async () => {
-      if (!conversation.isValid()) {
-        const validationError = conversation.validationError || {};
-        log.error(
-          'Contact is not valid. Not saving, but adding to collection:',
-          conversation.idForLogging(),
-          Errors.toLogFormat(validationError)
-        );
+      const create = async () => {
+        if (!conversation.isValid()) {
+          const validationError = conversation.validationError || {};
+          log.error(
+            'Contact is not valid. Not saving, but adding to collection:',
+            conversation.idForLogging(),
+            Errors.toLogFormat(validationError)
+          );
+
+          return conversation;
+        }
+
+        try {
+          if (isGroupV1(conversation.attributes)) {
+            maybeDeriveGroupV2Id(conversation);
+          }
+          await saveConversation(conversation.attributes);
+          log.info(`Conversation ${conversation.idForLogging()} saved successfully`);
+        } catch (error) {
+          log.error(
+            'Conversation save failed! ',
+            identifier,
+            type,
+            'Error:',
+            Errors.toLogFormat(error)
+          );
+          throw error;
+        }
 
         return conversation;
-      }
+      };
 
-      try {
-        if (isGroupV1(conversation.attributes)) {
-          maybeDeriveGroupV2Id(conversation);
-        }
-        await saveConversation(conversation.attributes);
-      } catch (error) {
-        log.error(
-          'Conversation save failed! ',
-          identifier,
-          type,
-          'Error:',
-          Errors.toLogFormat(error)
-        );
-        throw error;
-      }
+      conversation.initialPromise = create();
 
+      log.info(`New conversation created: ${conversation.idForLogging()}, type: ${type}`);
       return conversation;
-    };
-
-    conversation.initialPromise = create();
-
-    return conversation;
+    } catch (error) {
+      log.error(`Failed to create conversation: ${Errors.toLogFormat(error)}`);
+      throw error;
+    }
   }
 
   async getOrCreateAndWait(
@@ -385,7 +497,7 @@ export class ConversationController {
     const [id] = window.textsecure.utils.unencodeNumber(address);
     const conv = this.get(id);
 
-    if (conv) {
+    if (conv && !conv.get('permanentlyDeleted')) {
       return conv.get('id');
     }
 
@@ -524,6 +636,15 @@ export class ConversationController {
 
     const pniSignatureVerified = aci != null && pni != null && fromPniSignature;
 
+    // Check for permanently deleted conversations and remove them
+    const removeDeletedConversation = (conv: ConversationModel | undefined) => {
+      if (conv && conv.get('permanentlyDeleted')) {
+        this._conversations.remove(conv);
+        return undefined;
+      }
+      return conv;
+    };
+
     if (!aci && !e164 && !pni) {
       throw new Error(
         `${logId}: Need to provide at least one of: aci, e164, pni`
@@ -534,14 +655,18 @@ export class ConversationController {
       {
         key: 'serviceId',
         value: aci,
-        match: window.ConversationController.get(aci),
+        match: removeDeletedConversation(window.ConversationController.get(aci)),
       },
       {
         key: 'e164',
         value: e164,
-        match: window.ConversationController.get(e164),
+        match: removeDeletedConversation(window.ConversationController.get(e164)),
       },
-      { key: 'pni', value: pni, match: window.ConversationController.get(pni) },
+      {
+        key: 'pni',
+        value: pni,
+        match: removeDeletedConversation(window.ConversationController.get(pni)),
+      },
     ];
     let unusedMatches: Array<ConvoMatchType> = [];
 
@@ -1187,7 +1312,7 @@ export class ConversationController {
     const obsoleteHadMessages = (obsolete.get('messageCount') ?? 0) > 0;
 
     log.warn(`${logId}: Delete the obsolete conversation from the database`);
-    await removeConversation(obsoleteId);
+    await this.removeConversation(obsoleteId);
 
     const obsoleteStorageID = obsolete.get('storageID');
 
@@ -1415,7 +1540,7 @@ export class ConversationController {
       }
 
       // eslint-disable-next-line no-await-in-loop
-      await removeConversation(convo.id);
+        await ConversationController.remove(convo.id);
       this._conversations.remove(convo);
       this._conversations.resetLookups();
     }
@@ -1449,7 +1574,7 @@ export class ConversationController {
       drop(
         queue.addAll(
           temporaryConversations.map(item => async () => {
-            await removeConversation(item.id);
+        await ConversationController.remove(item.id);
           })
         )
       );
