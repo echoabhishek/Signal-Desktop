@@ -570,11 +570,16 @@ export function createIPCEvents(
       }
     },
 
+    lastNotificationClickTime: 0,
     showConversationViaNotification({
       conversationId,
       messageId,
       storyId,
     }: NotificationClickData) {
+      const now = Date.now();
+      const timeSinceLastNotificationClick = now - (this.lastNotificationClickTime || 0);
+      this.lastNotificationClickTime = now;
+
       if (conversationId) {
         if (storyId) {
           window.reduxActions.stories.viewStory({
@@ -585,7 +590,7 @@ export function createIPCEvents(
         } else {
           window.reduxActions.conversations.showConversation({
             conversationId,
-            messageId: messageId ?? undefined,
+            messageId: timeSinceLastNotificationClick > 2000 ? (messageId ?? undefined) : undefined,
           });
         }
       } else {
