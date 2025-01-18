@@ -117,12 +117,34 @@ export class SystemTrayService {
     return this.#tray !== undefined;
   }
 
+  #windowBounds?: Electron.Rectangle;
+
   #render = (): void => {
     if (this.#isEnabled && this.#browserWindow) {
       this.#renderEnabled();
       return;
     }
     this.#renderDisabled();
+  };
+
+  /**
+   * Preserve the window bounds when hiding/showing the window.
+   * This prevents the window from growing in size on Wayland when toggling visibility.
+   */
+  #preserveWindowBounds = (): void => {
+    if (this.#browserWindow) {
+      try {
+        if (this.#browserWindow.isVisible()) {
+          this.#windowBounds = this.#browserWindow.getBounds();
+          log.info('System tray service: saved window bounds', this.#windowBounds);
+        } else if (this.#windowBounds) {
+          this.#browserWindow.setBounds(this.#windowBounds);
+          log.info('System tray service: restored window bounds', this.#windowBounds);
+        }
+      } catch (error) {
+        log.error('System tray service: error preserving window bounds', error);
+      }
+    }
   };
 
   #renderEnabled() {
@@ -137,6 +159,8 @@ export class SystemTrayService {
     const tray = this.#tray;
     const browserWindow = this.#browserWindow;
 
+    this.#preserveWindowBounds();
+
     try {
       tray.setImage(getIcon(this.#unreadCount));
     } catch (err: unknown) {
@@ -146,13 +170,13 @@ export class SystemTrayService {
       tray.setImage(getDefaultIcon());
     }
 
-    // NOTE: we want to have the show/hide entry available in the tray icon
-    // context menu, since the 'click' event may not work on all platforms.
-    // For details please refer to:
-    // https://github.com/electron/electron/blob/master/docs/api/tray.md.
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        {
+    tray.setContextMenu(this.#createContextMenu());
+  }
+
+  #createContextMenu(): Menu {
+    const browserWindow = this.#browserWindow;
+    return Menu.buildFromTemplate([
+      {
           id: 'toggleWindowVisibility',
           ...(browserWindow?.isVisible()
             ? {
