@@ -2773,12 +2773,18 @@ export function clearCancelledConversationVerification(
   };
 }
 
+// TODO: Implement syncing of deleted conversations across devices
+
 function markConversationAsDeleted(conversationId: string): void {
   log.info(`markConversationAsDeleted: Marking conversation ${conversationId} as deleted`);
   const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
   if (!deletedConversations.includes(conversationId)) {
     deletedConversations.push(conversationId);
     localStorage.setItem('deletedConversations', JSON.stringify(deletedConversations));
+    // Call cleanupDeletedConversations less frequently to improve performance
+    if (deletedConversations.length % 10 === 0) {
+      cleanupDeletedConversations();
+    }
   }
 }
 
@@ -2787,11 +2793,32 @@ function isConversationDeleted(conversationId: string): boolean {
   return deletedConversations.includes(conversationId);
 }
 
-// TODO: Implement checks using isConversationDeleted in all places where conversations are loaded or displayed.
+// TODO: Consider using IndexedDB instead of localStorage for better storage management
+function cleanupDeletedConversations(): void {
+  const MAX_DELETED_CONVERSATIONS = 1000;
+  const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
+  if (deletedConversations.length > MAX_DELETED_CONVERSATIONS) {
+    const trimmedConversations = deletedConversations.slice(-MAX_DELETED_CONVERSATIONS);
+    localStorage.setItem('deletedConversations', JSON.stringify(trimmedConversations));
+    log.info(`cleanupDeletedConversations: Trimmed deleted conversations list from ${deletedConversations.length} to ${trimmedConversations.length}`);
+  }
+}
+
+// Utility function to check if a conversation should be loaded
+function shouldLoadConversation(conversationId: string): boolean {
+  if (isConversationDeleted(conversationId)) {
+    log.info(`Skipping load of deleted conversation ${conversationId}`);
+    return false;
+  }
+  return true;
+}
+
+// TODO: Ensure shouldLoadConversation is called before any attempt to load a conversation
+
+// TODO: Use shouldLoadConversation in all places where conversations are loaded or displayed.
 // Example usage:
 // function loadConversation(conversationId: string) {
-//   if (isConversationDeleted(conversationId)) {
-//     log.info(`Skipping load of deleted conversation ${conversationId}`);
+//   if (!shouldLoadConversation(conversationId)) {
 //     return null;
 //   }
 //   // Proceed with loading the conversation
@@ -3815,12 +3842,15 @@ function markConversationAsDeleted(conversationId: string): void {
     deletedConversations.push(conversationId);
     localStorage.setItem('deletedConversations', JSON.stringify(deletedConversations));
   }
+  cleanupDeletedConversations();
 }
 
 function isConversationDeleted(conversationId: string): boolean {
   const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
   return deletedConversations.includes(conversationId);
 }
+
+// Note: cleanupDeletedConversations function is already defined earlier in the file
 
 // TODO: Implement checks using isConversationDeleted in all places where conversations are loaded or displayed.
 // Example usage:
