@@ -994,37 +994,45 @@ export default class MessageSender {
 
     const isConnected = await checkNetworkConnectivity();
     if (!isConnected) {
+      log.error('sendMessage: No network connectivity');
       throw new Error('No network connectivity');
     }
 
     return retryWithExponentialBackoff(
       async () => {
-        const proto = await this.getContentMessage({
-          ...messageOptions,
-          includePniSignatureMessage,
-        });
+        try {
+          const proto = await this.getContentMessage({
+            ...messageOptions,
+            includePniSignatureMessage,
+          });
 
-        return new Promise((resolve, reject) => {
-          drop(
-            this.sendMessageProto({
-              callback: (res: CallbackResultType) => {
-                if (res.errors && res.errors.length > 0) {
-                  reject(new SendMessageProtoError(res));
-                } else {
-                  resolve(res);
-                }
-              },
-              contentHint,
-              groupId,
-              options,
-              proto,
-              recipients: messageOptions.recipients || [],
-              timestamp: messageOptions.timestamp,
-              urgent,
-              story,
-            })
-          );
-        });
+          return new Promise((resolve, reject) => {
+            drop(
+              this.sendMessageProto({
+                callback: (res: CallbackResultType) => {
+                  if (res.errors && res.errors.length > 0) {
+                    log.error('sendMessage: Errors in sendMessageProto callback', res.errors);
+                    reject(new SendMessageProtoError(res));
+                  } else {
+                    log.info('sendMessage: Message sent successfully');
+                    resolve(res);
+                  }
+                },
+                contentHint,
+                groupId,
+                options,
+                proto,
+                recipients: messageOptions.recipients || [],
+                timestamp: messageOptions.timestamp,
+                urgent,
+                story,
+              })
+            );
+          });
+        } catch (error) {
+          log.error('sendMessage: Error in message preparation or sending', error);
+          throw error;
+        }
       },
       'sendMessage'
     );

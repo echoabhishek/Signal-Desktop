@@ -81,6 +81,28 @@ async function testMessageSending() {
   } catch (error) {
     log.error('Regression test failed:', error);
   }
+
+  // Test 6: No network connectivity
+  log.info('Test 6: No network connectivity');
+  const originalCheckNetworkConnectivity = checkNetworkConnectivity;
+  try {
+    // Mock checkNetworkConnectivity to return false
+    (global as any).checkNetworkConnectivity = async () => false;
+    await sendMessage.sendMessage({
+      messageOptions: {
+        recipients: ['test-recipient'],
+        timestamp: Date.now(),
+      },
+      contentHint: 1,
+      groupId: undefined,
+      urgent: true,
+    });
+  } catch (error) {
+    log.info('Expected error for no network connectivity:', error);
+  } finally {
+    // Restore original checkNetworkConnectivity
+    (global as any).checkNetworkConnectivity = originalCheckNetworkConnectivity;
+  }
 }
 
 testMessageSending().then(() => log.info('All tests completed'));
