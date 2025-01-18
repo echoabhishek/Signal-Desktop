@@ -690,6 +690,10 @@ async function createWindow() {
     ? Math.min(windowConfig.height, maxHeight)
     : DEFAULT_HEIGHT;
 
+  let lastWindowSize: [number, number] = [width, height];
+
+  const isWayland = process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland';
+
   const windowOptions: Electron.BrowserWindowConstructorOptions = {
     show: false,
     width,
@@ -731,46 +735,30 @@ async function createWindow() {
     delete windowOptions.autoHideMenuBar;
   }
 
-  const startInTray =
-    isTestEnvironment(getEnvironment()) ||
-    (await systemTraySettingCache.get()) ===
-      SystemTraySetting.MinimizeToAndStartInSystemTray;
-
-  const haveFullWindowsBounds =
-    isNumber(windowOptions.x) &&
-    isNumber(windowOptions.y) &&
-    isNumber(windowOptions.width) &&
-    isNumber(windowOptions.height);
-  if (haveFullWindowsBounds) {
-    getLogger().info(
-      `visibleOnAnyScreen(window): x=${windowOptions.x}, y=${windowOptions.y}, ` +
-        `width=${windowOptions.width}, height=${windowOptions.height}`
-    );
-
-    const visibleOnAnyScreen = some(screen.getAllDisplays(), display => {
-      const displayBounds = get(display, 'bounds');
-      getLogger().info(
-        `visibleOnAnyScreen(display #${display.id}): ` +
-          `x=${displayBounds.x}, y=${displayBounds.y}, ` +
-          `width=${displayBounds.width}, height=${displayBounds.height}`
-      );
-
-      return isVisible(windowOptions as BoundsType, displayBounds);
-    });
-    if (!visibleOnAnyScreen) {
-      getLogger().info('visibleOnAnyScreen: Location reset needed');
-      delete windowOptions.x;
-      delete windowOptions.y;
-    }
+  const { x, y } = windowOptions;
+  const usingCustomPosition = Number.isInteger(x) && Number.isInteger(y);
+  if (!usingCustomPosition) {
+    delete windowOptions.x;
+    delete windowOptions.y;
   }
 
   getLogger().info(
-    'Initializing BrowserWindow config:',
+    'Initializing BrowserWindow config: %s',
     JSON.stringify(windowOptions)
   );
 
   // Create the browser window.
   mainWindow = new BrowserWindow(windowOptions);
+
+  if (isWayland) {
+    mainWindow.on('hide', () => {
+      lastWindowSize = mainWindow.getSize();
+    });
+
+    mainWindow.on('show', () => {
+      mainWindow.setSize(lastWindowSize[0], lastWindowSize[1]);
+    });
+  }
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);
   }
