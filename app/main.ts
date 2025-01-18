@@ -449,6 +449,52 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
     throw error;
   }
 }
+
+// Self-test function
+function runWindowStateTest(window: BrowserWindow): void {
+  getLogger().info('Starting window state test...');
+
+  const testStates = [
+    { action: 'minimize', func: () => window.minimize() },
+    { action: 'restore', func: () => window.restore() },
+    { action: 'maximize', func: () => window.maximize() },
+    { action: 'unmaximize', func: () => window.unmaximize() },
+    { action: 'fullscreen', func: () => window.setFullScreen(true) },
+    { action: 'leave-fullscreen', func: () => window.setFullScreen(false) },
+    { action: 'hide', func: () => window.hide() },
+    { action: 'show', func: () => window.show() },
+    { action: 'move', func: () => window.setPosition(100, 100) },
+    { action: 'resize', func: () => window.setSize(800, 600) },
+  ];
+
+  let testIndex = 0;
+  const runNextTest = () => {
+    if (testIndex < testStates.length) {
+      const test = testStates[testIndex];
+      getLogger().info(`Testing ${test.action}...`);
+      test.func();
+      testIndex++;
+      setTimeout(runNextTest, 1000);
+    } else {
+      getLogger().info('Window state test completed.');
+    }
+  };
+
+  runNextTest();
+}
+
+// Add this to your main window creation logic
+app.on('ready', async () => {
+  // ... existing code ...
+
+  const mainWindow = new BrowserWindow(/* your existing options */);
+  initializeWindowStateHandlers(mainWindow);
+
+  // Run the self-test after a short delay to ensure everything is initialized
+  setTimeout(() => runWindowStateTest(mainWindow), 5000);
+
+  // ... rest of your existing code ...
+});
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
 import { isProduction } from '../ts/util/version';
@@ -1158,6 +1204,9 @@ async function createWindow() {
     cleanupWindowStateHandlers();
     mainWindow = undefined;
   });
+
+  // Run the self-test after a short delay to ensure everything is initialized
+  setTimeout(() => runWindowStateTest(mainWindow), 5000);
 
   setupSpellChecker(
     mainWindow,
