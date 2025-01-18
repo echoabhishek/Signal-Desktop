@@ -571,6 +571,7 @@ export function createIPCEvents(
     },
 
     lastNotificationClickTime: 0,
+    lastScrolledMessageId: null,
     showConversationViaNotification({
       conversationId,
       messageId,
@@ -588,9 +589,11 @@ export function createIPCEvents(
             viewTarget: StoryViewTargetType.Replies,
           });
         } else {
+          const shouldScrollToMessage = timeSinceLastNotificationClick > 2000 && messageId !== this.lastScrolledMessageId;
+          this.lastScrolledMessageId = shouldScrollToMessage ? messageId : null;
           window.reduxActions.conversations.showConversation({
             conversationId,
-            messageId: timeSinceLastNotificationClick > 2000 ? (messageId ?? undefined) : undefined,
+            messageId: shouldScrollToMessage ? messageId : undefined,
           });
         }
       } else {
