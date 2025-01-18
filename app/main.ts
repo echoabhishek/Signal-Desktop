@@ -104,14 +104,41 @@ const getLogger = logging.getLogger;
 function safelyStoreWindowBounds(window: BrowserWindow): void {
   try {
     if (!window.isDestroyed() && !window.isMinimized() && !window.isMaximized() && !window.isFullScreen()) {
-      storedWindowBounds = window.getBounds();
-      getLogger().info('Stored window bounds:', storedWindowBounds);
+      const newBounds = window.getBounds();
+      const display = screen.getDisplayMatching(newBounds);
+      if (display) {
+        const { width, height } = display.workAreaSize;
+        if (newBounds.width <= width && newBounds.height <= height) {
+          storedWindowBounds = newBounds;
+          getLogger().info('Stored window bounds:', storedWindowBounds);
+        } else {
+          getLogger().warn('Not storing window bounds: window size exceeds display work area');
+        }
+      } else {
+        getLogger().warn('Not storing window bounds: unable to find matching display');
+      }
     } else {
       getLogger().info('Not storing window bounds due to window state');
     }
   } catch (error) {
     getLogger().error('Error storing window bounds:', Errors.toLogFormat(error));
   }
+}
+
+const handleWindowStateChange = debounce((window: BrowserWindow) => {
+  getLogger().info('Window state changed');
+  safelyStoreWindowBounds(window);
+}, 1000);  // Debounce for 1 second
+
+function initializeWindowStateHandlers(window: BrowserWindow): void {
+  window.on('show', () => handleWindowStateChange(window));
+  window.on('hide', () => handleWindowStateChange(window));
+  window.on('maximize', () => handleWindowStateChange(window));
+  window.on('unmaximize', () => handleWindowStateChange(window));
+  window.on('minimize', () => handleWindowStateChange(window));
+  window.on('restore', () => handleWindowStateChange(window));
+  window.on('enter-full-screen', () => handleWindowStateChange(window));
+  window.on('leave-full-screen', () => handleWindowStateChange(window));
 }
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
@@ -803,6 +830,8 @@ async function createWindow() {
   }
 
   mainWindowCreated = true;
+
+  initializeWindowStateHandlers(mainWindow);
   setupSpellChecker(
     mainWindow,
     getPreferredSystemLocales(),
@@ -1019,13 +1048,56 @@ if (mainWindow.isFullScreen()) {
     }
   });
 
-  mainWindow.on('show', () => {
-    if (mainWindow) {
-      mainWindow.webContents.send('set-media-playback-disabled', false);
-    }
-  });
+mainWindow.on('show', () => {
+  if (mainWindow) {
+    mainWindow.webContents.send('set-media-playback-disabled', false);
+    handleWindowStateChange(mainWindow);
+  }
+});
 
-  mainWindow.once('ready-to-show', async () => {
+mainWindow.on('hide', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('maximize', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('unmaximize', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('minimize', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('restore', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('enter-full-screen', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.on('leave-full-screen', () => {
+  if (mainWindow) {
+    handleWindowStateChange(mainWindow);
+  }
+});
+
+mainWindow.once('ready-to-show', async () => {
     getLogger().info('main window is ready-to-show');
 
     // Ignore sql errors and show the window anyway
