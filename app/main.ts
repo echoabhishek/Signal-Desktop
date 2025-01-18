@@ -7,6 +7,11 @@ import * as os from 'os';
 import { chmod, realpath, writeFile } from 'fs-extra';
 import { randomBytes } from 'crypto';
 import { createParser } from 'dashdash';
+import {
+  markConversationAsDeleted,
+  isConversationDeleted,
+  shouldLoadConversation,
+} from '../ts/state/ducks/conversations';
 
 import normalizePath from 'normalize-path';
 import fastGlob from 'fast-glob';
@@ -1980,6 +1985,29 @@ electronProtocol.registerSchemesAsPrivileged([
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 let ready = false;
+
+// Manual checks for deleted conversations functionality
+import {
+  markConversationAsDeleted,
+  isConversationDeleted,
+  shouldLoadConversation,
+} from '../ts/state/ducks/conversations';
+
+console.log('Running manual checks for deleted conversations functionality');
+markConversationAsDeleted('test-conversation-1');
+markConversationAsDeleted('test-conversation-2');
+markConversationAsDeleted('test-conversation-1'); // Duplicate, should not be added
+console.log(`Is test-conversation-1 deleted? ${isConversationDeleted('test-conversation-1')}`);
+console.log(`Is test-conversation-3 deleted? ${isConversationDeleted('test-conversation-3')}`);
+console.log(`Should load test-conversation-2? ${shouldLoadConversation('test-conversation-2')}`);
+console.log(`Should load test-conversation-3? ${shouldLoadConversation('test-conversation-3')}`);
+
+// Cleanup test data
+if (global.localStorage) {
+  global.localStorage.removeItem('deletedConversations');
+}
+console.log('Manual checks completed');
+
 app.on('ready', async () => {
   dns.setFallback(await getDNSFallback());
   if (DISABLE_IPV6) {

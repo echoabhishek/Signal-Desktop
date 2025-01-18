@@ -2786,11 +2786,14 @@ function markConversationAsDeleted(conversationId: string): void {
       cleanupDeletedConversations();
     }
   }
+  log.info(`Current deleted conversations: ${JSON.stringify(deletedConversations)}`);
 }
 
 function isConversationDeleted(conversationId: string): boolean {
   const deletedConversations = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
-  return deletedConversations.includes(conversationId);
+  const isDeleted = deletedConversations.includes(conversationId);
+  log.info(`isConversationDeleted: Conversation ${conversationId} is ${isDeleted ? 'deleted' : 'not deleted'}`);
+  return isDeleted;
 }
 
 // TODO: Consider using IndexedDB instead of localStorage for better storage management
@@ -2806,12 +2809,24 @@ function cleanupDeletedConversations(): void {
 
 // Utility function to check if a conversation should be loaded
 function shouldLoadConversation(conversationId: string): boolean {
-  if (isConversationDeleted(conversationId)) {
-    log.info(`Skipping load of deleted conversation ${conversationId}`);
-    return false;
-  }
-  return true;
+  const shouldLoad = !isConversationDeleted(conversationId);
+  log.info(`shouldLoadConversation: Conversation ${conversationId} should ${shouldLoad ? 'be loaded' : 'not be loaded'}`);
+  return shouldLoad;
 }
+
+// Manual checks
+log.info('Running manual checks for deleted conversations functionality');
+markConversationAsDeleted('test-conversation-1');
+markConversationAsDeleted('test-conversation-2');
+markConversationAsDeleted('test-conversation-1'); // Duplicate, should not be added
+log.info(`Is test-conversation-1 deleted? ${isConversationDeleted('test-conversation-1')}`);
+log.info(`Is test-conversation-3 deleted? ${isConversationDeleted('test-conversation-3')}`);
+log.info(`Should load test-conversation-2? ${shouldLoadConversation('test-conversation-2')}`);
+log.info(`Should load test-conversation-3? ${shouldLoadConversation('test-conversation-3')}`);
+
+// Cleanup test data
+localStorage.removeItem('deletedConversations');
+log.info('Manual checks completed');
 
 // TODO: Ensure shouldLoadConversation is called before any attempt to load a conversation
 
