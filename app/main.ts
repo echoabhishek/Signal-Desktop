@@ -193,22 +193,49 @@ function resetWindowState(window: BrowserWindow): void {
 }
 
 function handleDPIChange(window: BrowserWindow): void {
-  const bounds = window.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const scaleFactor = display.scaleFactor;
-  
-  const newBounds = {
-    x: Math.round(bounds.x / scaleFactor),
-    y: Math.round(bounds.y / scaleFactor),
-    width: Math.round(bounds.width / scaleFactor),
-    height: Math.round(bounds.height / scaleFactor),
-  };
+  try {
+    const bounds = window.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const scaleFactor = display.scaleFactor;
+    
+    const newBounds = {
+      x: Math.round(bounds.x / scaleFactor),
+      y: Math.round(bounds.y / scaleFactor),
+      width: Math.round(bounds.width / scaleFactor),
+      height: Math.round(bounds.height / scaleFactor),
+    };
 
-  if (!isValidWindowBounds(newBounds, display)) {
-    getLogger().warn('Invalid window bounds after DPI change, resetting window state');
+    if (!isValidWindowBounds(newBounds, display)) {
+      getLogger().warn('Invalid window bounds after DPI change, resetting window state');
+      resetWindowState(window);
+    } else {
+      setWindowBoundsSafely(window, newBounds);
+    }
+  } catch (error) {
+    getLogger().error('Error in handleDPIChange:', Errors.toLogFormat(error));
     resetWindowState(window);
-  } else {
-    setWindowBoundsSafely(window, newBounds);
+  }
+}
+
+function handleWaylandResize(window: BrowserWindow): void {
+  try {
+    const bounds = window.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const { width: maxWidth, height: maxHeight } = display.workAreaSize;
+
+    const newBounds = {
+      x: bounds.x,
+      y: bounds.y,
+      width: Math.min(bounds.width, maxWidth),
+      height: Math.min(bounds.height, maxHeight),
+    };
+
+    if (newBounds.width !== bounds.width || newBounds.height !== bounds.height) {
+      getLogger().warn('Window resized beyond screen boundaries on Wayland, adjusting size');
+      setWindowBoundsSafely(window, newBounds);
+    }
+  } catch (error) {
+    getLogger().error('Error in handleWaylandResize:', Errors.toLogFormat(error));
   }
 }
 
@@ -295,7 +322,12 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
       handleWindowStateChange(window);
     },
     moved: () => handleWindowStateChange(window),
-    resize: () => handleWindowStateChange(window),
+    resize: () => {
+      handleWindowStateChange(window);
+      if (process.platform === 'linux') {
+        handleWaylandResize(window);
+      }
+    },
   };
 
   Object.entries(handlers).forEach(([event, handler]) => {
