@@ -33,6 +33,20 @@ import {
   UnregisteredUserError,
   HTTPError,
 } from './Errors';
+
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF_MS = 1000;
+
+function getBackoffDelay(retryCount: number): number {
+  return INITIAL_BACKOFF_MS * Math.pow(2, retryCount);
+}
+
+class MessageTransmissionError extends Error {
+  constructor(public serviceId: ServiceIdString, public originalError: Error) {
+    super(`Failed to transmit message to ${serviceId} after ${MAX_RETRIES} attempts`);
+    this.name = 'MessageTransmissionError';
+  }
+}
 import type { CallbackResultType, CustomError } from './Types.d';
 import { Address } from '../types/Address';
 import * as Errors from '../types/errors';
@@ -261,9 +275,11 @@ export default class OutgoingMessage {
 
   reloadDevicesAndSend(
     serviceId: ServiceIdString,
-    recurse?: boolean
+    recurse?: boolean,
+    retryCount: number = 0
   ): () => Promise<void> {
     return async () => {
+      log.info(`reloadDevicesAndSend: Reloading devices for ${serviceId}, recurse: ${recurse}, retryCount: ${retryCount}`);
       const ourAci = window.textsecure.storage.user.getCheckedAci();
       const deviceIds = await window.textsecure.storage.protocol.getDeviceIds({
         ourServiceId: ourAci,
@@ -277,7 +293,7 @@ export default class OutgoingMessage {
         );
         return undefined;
       }
-      return this.doSendMessage(serviceId, deviceIds, recurse);
+      return this.doSendMessage(serviceId, deviceIds, recurse, retryCount);
     };
   }
 
@@ -291,6 +307,7 @@ export default class OutgoingMessage {
         ? sendMetadata[serviceId]
         : { accessKey: null };
     const { accessKey } = info;
+    log.info(`doSendMessage: AccessKey ${accessKey ? 'provided' : 'not provided'}`);
 
     const { accessKeyFailed } = await getKeysForServiceId(
       serviceId,
@@ -399,9 +416,36 @@ export default class OutgoingMessage {
   async doSendMessage(
     serviceId: ServiceIdString,
     deviceIds: Array<number>,
-    recurse?: boolean
+    recurse: boolean,
+    retryCount: number = 0
   ): Promise<void> {
+    log.info(`doSendMessage: Starting send to ${serviceId}, devices: ${deviceIds.join(', ')}, recurse: ${recurse}, retryCount: ${retryCount}`);
+    
+    if (!deviceIds.length) {
+      log.warn(`doSendMessage: No device IDs for ${serviceId}`);
+      return;
+    }
+
     const { sendMetadata } = this;
+
+    if (retryCount > 0) {
+      const backoffDelay = getBackoffDelay(retryCount - 1);
+      log.info(`doSendMessage: Retrying after ${backoffDelay}ms backoff`);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+
+    try {
+      // Validate input parameters
+      if (!serviceId || !deviceIds.length) {
+        throw new Error('Invalid serviceId or deviceIds');
+      }
+
+      // Check if we have valid send metadata
+      if (!sendMetadata || !sendMetadata[serviceId]) {
+        log.warn(`doSendMessage: No send metadata for ${serviceId}`);
+        // Attempt to fetch metadata if missing
+        await this.getKeysForServiceId(serviceId, null);
+      }
     const {
       accessKey = null,
       groupSendToken = null,
@@ -417,6 +461,7 @@ export default class OutgoingMessage {
     const sealedSender =
       (accessKey != null || groupSendToken != null) &&
       senderCertificate != null;
+    log.info(`doSendMessage: SealedSender ${sealedSender ? 'enabled' : 'disabled'}, SenderCertificate ${senderCertificate ? 'present' : 'not present'}`);
 
     // We don't send to ourselves unless sealedSender is enabled
     const ourNumber = window.textsecure.storage.user.getNumber();
@@ -559,7 +604,7 @@ export default class OutgoingMessage {
                   delete sendMetadata[serviceId];
                 }
 
-                return this.doSendMessage(serviceId, deviceIds, recurse);
+                return this.doSendMessage(serviceId, deviceIds, recurse, retryCount + 1);
               }
 
               throw error;
@@ -567,11 +612,23 @@ export default class OutgoingMessage {
           );
         }
 
-        return this.transmitMessage(serviceId, jsonData, this.timestamp).then(
-          () => {
-            this.successfulServiceIds.push(serviceId);
-            this.recipients[serviceId] = deviceIds;
-            this.numberCompleted();
+        log.info(`doSendMessage: Transmitting message to ${serviceId}`);
+        try {
+          await this.transmitMessage(serviceId, jsonData, this.timestamp);
+          this.successfulServiceIds.push(serviceId);
+          this.recipients[serviceId] = deviceIds;
+          this.numberCompleted();
+          log.info(`doSendMessage: Message transmitted successfully to ${serviceId}`);
+        } catch (transmitError) {
+          log.error(`doSendMessage: Failed to transmit message to ${serviceId}`, transmitError);
+          if (retryCount < MAX_RETRIES) {
+            log.info(`doSendMessage: Retrying transmission to ${serviceId}, attempt ${retryCount + 1}`);
+            log.error(`Error details: ${transmitError.message}`);
+            return this.doSendMessage(serviceId, deviceIds, recurse, retryCount + 1);
+          }
+          log.error(`doSendMessage: Max retries reached for ${serviceId}`);
+          throw new MessageTransmissionError(serviceId, transmitError);
+        }
 
             if (this.sendLogCallback) {
               void this.sendLogCallback({
@@ -587,10 +644,10 @@ export default class OutgoingMessage {
         );
       })
       .catch(async error => {
-        if (
-          error instanceof HTTPError &&
-          (error.code === 410 || error.code === 409)
-        ) {
+        log.error(`doSendMessage: Error occurred while sending to ${serviceId}`, error);
+        if (error instanceof HTTPError) {
+          if (error.code === 410 || error.code === 409) {
+            // Handle device list update errors
           if (!recurse) {
             this.registerError(
               serviceId,
@@ -632,13 +689,8 @@ export default class OutgoingMessage {
               this.reloadDevicesAndSend(serviceId, error.code === 409)
             );
           });
-        }
-
-        let newError = error;
-        if (
-          error instanceof LibSignalErrorBase &&
-          error.code === ErrorCode.UntrustedIdentity
-        ) {
+        } else if (error instanceof LibSignalErrorBase && error.code === ErrorCode.UntrustedIdentity) {
+          // Handle untrusted identity errors
           newError = new OutgoingIdentityKeyError(serviceId, error);
           log.error(
             'Got "key changed" error from encrypt - no identityKey for application layer',
@@ -669,6 +721,17 @@ export default class OutgoingMessage {
 
         return undefined;
       });
+    } catch (finalError) {
+      log.error(`doSendMessage: Unhandled error in doSendMessage for ${serviceId}`, finalError);
+      if (finalError instanceof MessageTransmissionError) {
+        this.registerError(serviceId, 'Failed to transmit message after multiple attempts', finalError.originalError);
+      } else {
+        this.registerError(serviceId, 'Unhandled error in doSendMessage', finalError);
+      }
+      throw finalError;
+    } finally {
+      log.info(`doSendMessage: Finished processing for ${serviceId}`);
+    }
   }
 
   async removeDeviceIdsForServiceId(
@@ -686,7 +749,8 @@ export default class OutgoingMessage {
     );
   }
 
-  async sendToServiceId(serviceId: ServiceIdString): Promise<void> {
+async sendToServiceId(serviceId: ServiceIdString): Promise<void> {
+    log.info(`sendToServiceId: Starting send to ${serviceId}`);
     if (isSignalServiceId(serviceId)) {
       this.registerError(
         serviceId,
