@@ -396,11 +396,12 @@ export default class OutgoingMessage {
     return message.asCiphertextMessage();
   }
 
-  async doSendMessage(
+async doSendMessage(
     serviceId: ServiceIdString,
     deviceIds: Array<number>,
     recurse?: boolean
   ): Promise<void> {
+    log.info(`doSendMessage: Starting for serviceId ${serviceId} with ${deviceIds.length} devices`);
     const { sendMetadata } = this;
     const {
       accessKey = null,
@@ -417,6 +418,7 @@ export default class OutgoingMessage {
     const sealedSender =
       (accessKey != null || groupSendToken != null) &&
       senderCertificate != null;
+    log.info(`doSendMessage: Sealed sender ${sealedSender ? 'enabled' : 'disabled'}`);
 
     // We don't send to ourselves unless sealedSender is enabled
     const ourNumber = window.textsecure.storage.user.getNumber();
@@ -431,6 +433,7 @@ export default class OutgoingMessage {
           (typeof ourDeviceId === 'string' &&
             deviceId === parseInt(ourDeviceId, 10))
       );
+      log.info(`doSendMessage: Filtered out our own device. Remaining devices: ${deviceIds.length}`);
     }
 
     const sessionStore = new Sessions({ ourServiceId: ourAci });
@@ -443,6 +446,7 @@ export default class OutgoingMessage {
           new Address(serviceId, destinationDeviceId)
         );
 
+        log.info(`doSendMessage: Processing device ${destinationDeviceId} for serviceId ${serviceId}`);
         return window.textsecure.storage.protocol.enqueueSessionJob<MessageType>(
           address,
           `doSendMessage(${address.toString()}, ${this.timestamp})`,

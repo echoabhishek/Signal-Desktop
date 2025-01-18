@@ -989,32 +989,45 @@ export default class MessageSender {
     story?: boolean;
     includePniSignatureMessage?: boolean;
   }>): Promise<CallbackResultType> {
-    const proto = await this.getContentMessage({
-      ...messageOptions,
-      includePniSignatureMessage,
-    });
+    const { checkNetworkConnectivity } = await import('../util/networkUtils');
+    const { retryWithExponentialBackoff } = await import('../util/retryUtils');
 
-    return new Promise((resolve, reject) => {
-      drop(
-        this.sendMessageProto({
-          callback: (res: CallbackResultType) => {
-            if (res.errors && res.errors.length > 0) {
-              reject(new SendMessageProtoError(res));
-            } else {
-              resolve(res);
-            }
-          },
-          contentHint,
-          groupId,
-          options,
-          proto,
-          recipients: messageOptions.recipients || [],
-          timestamp: messageOptions.timestamp,
-          urgent,
-          story,
-        })
-      );
-    });
+    const isConnected = await checkNetworkConnectivity();
+    if (!isConnected) {
+      throw new Error('No network connectivity');
+    }
+
+    return retryWithExponentialBackoff(
+      async () => {
+        const proto = await this.getContentMessage({
+          ...messageOptions,
+          includePniSignatureMessage,
+        });
+
+        return new Promise((resolve, reject) => {
+          drop(
+            this.sendMessageProto({
+              callback: (res: CallbackResultType) => {
+                if (res.errors && res.errors.length > 0) {
+                  reject(new SendMessageProtoError(res));
+                } else {
+                  resolve(res);
+                }
+              },
+              contentHint,
+              groupId,
+              options,
+              proto,
+              recipients: messageOptions.recipients || [],
+              timestamp: messageOptions.timestamp,
+              urgent,
+              story,
+            })
+          );
+        });
+      },
+      'sendMessage'
+    );
   }
 
   // Note: all the other low-level sends call this, so it is a chokepoint for 1:1 sends
