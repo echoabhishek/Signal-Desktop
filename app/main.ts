@@ -98,6 +98,8 @@ import * as sqlChannels from './sql_channel';
 import * as windowState from './window_state';
 import type { CreateTemplateOptionsType } from './menu';
 import { createTemplate } from './menu';
+
+const getLogger = logging.getLogger;
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
 import { isProduction } from '../ts/util/version';
@@ -139,6 +141,7 @@ if (OS.isMacOS()) {
 //   be closed automatically when the JavaScript object is garbage collected.
 let mainWindow: BrowserWindow | undefined;
 let mainWindowCreated = false;
+let storedWindowBounds: Electron.Rectangle | null = null;
 let loadingWindow: BrowserWindow | undefined;
 
 // Create a buffered logger to hold our log lines until we fully initialize
@@ -245,11 +248,18 @@ function showWindow() {
   //   has been docked using Aero Snap/Snap Assist. A full .show() call here will cause
   //   the window to reposition:
   //   https://github.com/signalapp/Signal-Desktop/issues/1429
-  if (mainWindow.isVisible()) {
-    focusAndForceToTop(mainWindow);
+if (mainWindow.isVisible()) {
+  focusAndForceToTop(mainWindow);
+} else {
+  if (storedWindowBounds) {
+    getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
+    mainWindow.setBounds(storedWindowBounds);
+    storedWindowBounds = null;
   } else {
-    mainWindow.show();
+    getLogger().info('No stored window bounds to restore');
   }
+  mainWindow.show();
+}
 }
 
 if (!process.mas) {
@@ -908,12 +918,20 @@ async function createWindow() {
      * issue: https://github.com/signalapp/Signal-Desktop/issues/4348
      */
     if (mainWindow) {
-      if (mainWindow.isFullScreen()) {
-        mainWindow.once('leave-full-screen', () => mainWindow?.hide());
-        mainWindow.setFullScreen(false);
-      } else {
-        mainWindow.hide();
-      }
+if (mainWindow.isFullScreen()) {
+  mainWindow.once('leave-full-screen', () => {
+    if (mainWindow) {
+      storedWindowBounds = mainWindow.getBounds();
+      getLogger().info('Storing window bounds before hiding:', storedWindowBounds);
+      mainWindow.hide();
+    }
+  });
+  mainWindow.setFullScreen(false);
+} else {
+  storedWindowBounds = mainWindow.getBounds();
+  getLogger().info('Storing window bounds before hiding:', storedWindowBounds);
+  mainWindow.hide();
+}
     }
 
     // On Mac, or on other platforms when the tray icon is in use, the window
@@ -1009,10 +1027,17 @@ async function createWindow() {
       !startInTray &&
       !config.get<boolean>('ciIsBackupIntegration');
 
-    if (shouldShowWindow) {
-      getLogger().info('showing main window');
-      mainWindow.show();
-    }
+if (shouldShowWindow) {
+  getLogger().info('showing main window');
+  if (storedWindowBounds) {
+    getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
+    mainWindow.setBounds(storedWindowBounds);
+    storedWindowBounds = null;
+  } else {
+    getLogger().info('No stored window bounds to restore');
+  }
+  mainWindow.show();
+}
   });
 
   await safeLoadURL(
@@ -2526,12 +2551,20 @@ app.on('activate', () => {
   }
 
   // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (mainWindow) {
-    mainWindow.show();
+// dock icon is clicked and there are no other windows open.
+if (mainWindow) {
+  if (storedWindowBounds) {
+    getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
+    mainWindow.setBounds(storedWindowBounds);
+    storedWindowBounds = null;
   } else {
-    drop(createWindow());
+    getLogger().info('No stored window bounds to restore');
   }
+  mainWindow.show();
+} else {
+  getLogger().info('Creating new window');
+  drop(createWindow());
+}
 });
 
 // Defense in depth. We never intend to open webviews or windows. Prevent it completely.
