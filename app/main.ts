@@ -270,8 +270,8 @@ function resetWindowState(window: BrowserWindow): void {
       isFullScreen: window.isFullScreen()
     });
 
-    if (isWindowStuck(window)) {
-      getLogger().warn('Window still stuck after reset, attempting to recreate window');
+    if (!verifyWindowState(window)) {
+      getLogger().warn('Window still in invalid state after reset, attempting to recreate window');
       const newWindow = new BrowserWindow(window.getBounds());
       newWindow.loadURL(window.webContents.getURL());
       window.close();
@@ -282,6 +282,10 @@ function resetWindowState(window: BrowserWindow): void {
         isMaximized: newWindow.isMaximized(),
         isFullScreen: newWindow.isFullScreen()
       });
+
+      if (!verifyWindowState(newWindow)) {
+        getLogger().error('Failed to create a valid window state after recreation');
+      }
     }
 
     windowStateChangeCount = 0;
@@ -429,8 +433,8 @@ const handleWindowStateChange = debounce((window: BrowserWindow) => {
       isStuck,
     });
 
-    if (isStuck) {
-      getLogger().warn('Window is stuck in an invalid state, resetting');
+    if (isStuck || !verifyWindowState(window)) {
+      getLogger().warn('Window is in an invalid state, resetting');
       resetWindowState(window);
     } else if (!isMinimized && !isMaximized && !isFullScreen) {
       safelyStoreWindowBounds(window);
@@ -444,6 +448,12 @@ const handleWindowStateChange = debounce((window: BrowserWindow) => {
       setTimeout(() => {
         windowStateChangeCount = 0;
       }, WINDOW_STATE_CHANGE_INTERVAL);
+    }
+
+    // Verify window state after all changes
+    if (!verifyWindowState(window)) {
+      getLogger().warn('Window state is still invalid after handling, forcing reset');
+      resetWindowState(window);
     }
   } catch (error) {
     getLogger().error('Error in handleWindowStateChange:', Errors.toLogFormat(error));
@@ -535,7 +545,7 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
 
 // Self-test function
 function runWindowStateTest(window: BrowserWindow): void {
-  getLogger().info('Starting window state test...');
+  getLogger().info('Starting comprehensive window state test...');
 
   const testStates = [
     { action: 'minimize', func: () => window.minimize() },
@@ -548,6 +558,24 @@ function runWindowStateTest(window: BrowserWindow): void {
     { action: 'show', func: () => window.show() },
     { action: 'move', func: () => window.setPosition(100, 100) },
     { action: 'resize', func: () => window.setSize(800, 600) },
+    { action: 'rapid-resize', func: () => {
+      for (let i = 0; i < 10; i++) {
+        window.setSize(800 + i * 10, 600 + i * 10);
+      }
+    }},
+    { action: 'move-offscreen', func: () => {
+      const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+      window.setPosition(width + 100, height + 100);
+    }},
+    { action: 'dpi-change-simulation', func: () => {
+      const currentBounds = window.getBounds();
+      window.setBounds({
+        x: currentBounds.x * 2,
+        y: currentBounds.y * 2,
+        width: currentBounds.width * 2,
+        height: currentBounds.height * 2
+      });
+    }},
   ];
 
   let testIndex = 0;
@@ -557,13 +585,47 @@ function runWindowStateTest(window: BrowserWindow): void {
       getLogger().info(`Testing ${test.action}...`);
       test.func();
       testIndex++;
-      setTimeout(runNextTest, 1000);
+      setTimeout(() => {
+        const bounds = window.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        getLogger().info(`After ${test.action}:`, {
+          bounds,
+          isMinimized: window.isMinimized(),
+          isMaximized: window.isMaximized(),
+          isFullScreen: window.isFullScreen(),
+          isVisible: window.isVisible(),
+          isOnScreen: isValidWindowBounds(bounds, display)
+        });
+        runNextTest();
+      }, 1000);
     } else {
-      getLogger().info('Window state test completed.');
+      getLogger().info('Comprehensive window state test completed.');
     }
   };
 
   runNextTest();
+}
+
+function verifyWindowState(window: BrowserWindow): boolean {
+  const bounds = window.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const isValid = isValidWindowBounds(bounds, display) && 
+                  !window.isMinimized() && 
+                  window.isVisible() && 
+                  (window.isMaximized() || window.isFullScreen() || isValidWindowBounds(bounds, display));
+  
+  if (!isValid) {
+    getLogger().error('Invalid window state detected:', {
+      bounds,
+      isMinimized: window.isMinimized(),
+      isMaximized: window.isMaximized(),
+      isFullScreen: window.isFullScreen(),
+      isVisible: window.isVisible(),
+      isOnScreen: isValidWindowBounds(bounds, display)
+    });
+  }
+  
+  return isValid;
 }
 
 // Add this to your main window creation logic
