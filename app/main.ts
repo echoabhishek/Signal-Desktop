@@ -159,6 +159,13 @@ function getMainWindow() {
   return mainWindow;
 }
 
+function restoreWindowSize(window: BrowserWindow) {
+  if (global.initialWindowSize) {
+    const { width, height } = global.initialWindowSize;
+    window.setSize(width, height);
+  }
+}
+
 const development =
   getEnvironment() === Environment.Development ||
   getEnvironment() === Environment.Staging;
@@ -720,6 +727,9 @@ async function createWindow() {
     icon: windowIcon,
     ...pick(windowConfig, ['autoHideMenuBar', 'x', 'y']),
   };
+
+  // Store the initial window size
+  global.initialWindowSize = { width, height };
 
   if (!isNumber(windowOptions.width) || windowOptions.width < MIN_WIDTH) {
     windowOptions.width = DEFAULT_WIDTH;

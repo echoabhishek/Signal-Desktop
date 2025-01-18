@@ -175,6 +175,7 @@ export class SystemTrayService {
                   );
                   if (this.#browserWindow) {
                     this.#browserWindow.show();
+                    (global as any).restoreWindowSize(this.#browserWindow);
                     focusAndForceToTop(this.#browserWindow);
                   }
                 },
@@ -224,6 +225,7 @@ export class SystemTrayService {
         browserWindow.hide();
       } else {
         browserWindow.show();
+        (global as any).restoreWindowSize(browserWindow);
         focusAndForceToTop(browserWindow);
       }
     });
