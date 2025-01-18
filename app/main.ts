@@ -152,12 +152,26 @@ function isValidWindowBounds(bounds: Electron.Rectangle, display: Electron.Displ
 
 function safelyStoreWindowBounds(window: BrowserWindow): void {
   try {
-    if (!window.isDestroyed() && !window.isMinimized() && !window.isMaximized() && !window.isFullScreen()) {
-      const newBounds = window.getBounds();
-      const display = screen.getDisplayMatching(newBounds);
+    const isDestroyed = window.isDestroyed();
+    const isMinimized = window.isMinimized();
+    const isMaximized = window.isMaximized();
+    const isFullScreen = window.isFullScreen();
+    const newBounds = window.getBounds();
+    const display = screen.getDisplayMatching(newBounds);
+
+    getLogger().info('Attempting to store window bounds', {
+      isDestroyed,
+      isMinimized,
+      isMaximized,
+      isFullScreen,
+      newBounds,
+      displayId: display ? display.id : 'unknown'
+    });
+
+    if (!isDestroyed && !isMinimized && !isMaximized && !isFullScreen) {
       if (display && isValidWindowBounds(newBounds, display)) {
         storedWindowBounds = newBounds;
-        getLogger().info('Stored window bounds:', storedWindowBounds);
+        getLogger().info('Successfully stored window bounds:', storedWindowBounds);
       } else {
         getLogger().warn('Not storing invalid window bounds:', newBounds);
       }
@@ -186,11 +200,19 @@ function setWindowBoundsSafely(window: BrowserWindow, bounds: Electron.Rectangle
 
 function restoreWindowBounds(window: BrowserWindow): void {
   try {
+    getLogger().info('Attempting to restore window bounds', {
+      storedWindowBounds,
+      currentBounds: window.getBounds(),
+      isMinimized: window.isMinimized(),
+      isMaximized: window.isMaximized(),
+      isFullScreen: window.isFullScreen()
+    });
+
     if (storedWindowBounds) {
       const display = screen.getDisplayMatching(storedWindowBounds);
       if (display && isValidWindowBounds(storedWindowBounds, display)) {
         setWindowBoundsSafely(window, storedWindowBounds);
-        getLogger().info('Restored window bounds:', storedWindowBounds);
+        getLogger().info('Successfully restored window bounds:', storedWindowBounds);
       } else {
         getLogger().warn('Not restoring invalid window bounds:', storedWindowBounds);
         // Fallback: center the window on the primary display
@@ -198,19 +220,35 @@ function restoreWindowBounds(window: BrowserWindow): void {
         const { width, height } = window.getBounds();
         const x = Math.round(primaryDisplay.workArea.x + (primaryDisplay.workArea.width - width) / 2);
         const y = Math.round(primaryDisplay.workArea.y + (primaryDisplay.workArea.height - height) / 2);
-        setWindowBoundsSafely(window, { x, y, width, height });
-        getLogger().info('Fallback: Centered window on primary display');
+        const newBounds = { x, y, width, height };
+        setWindowBoundsSafely(window, newBounds);
+        getLogger().info('Fallback: Centered window on primary display', newBounds);
       }
     } else {
       getLogger().info('No stored window bounds to restore');
     }
+
+    // Double-check final window state
+    const finalBounds = window.getBounds();
+    const finalDisplay = screen.getDisplayMatching(finalBounds);
+    getLogger().info('Final window state after restore attempt', {
+      bounds: finalBounds,
+      isValidBounds: isValidWindowBounds(finalBounds, finalDisplay),
+      displayId: finalDisplay.id
+    });
   } catch (error) {
     getLogger().error('Error in restoreWindowBounds:', Errors.toLogFormat(error));
   }
 }
 
 function resetWindowState(window: BrowserWindow): void {
-  getLogger().warn('Resetting window state');
+  getLogger().warn('Resetting window state', {
+    currentBounds: window.getBounds(),
+    isMinimized: window.isMinimized(),
+    isMaximized: window.isMaximized(),
+    isFullScreen: window.isFullScreen()
+  });
+
   try {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workArea;
@@ -225,12 +263,25 @@ function resetWindowState(window: BrowserWindow): void {
     window.unmaximize();
     setWindowBoundsSafely(window, newBounds);
 
+    getLogger().info('Window state after reset attempt', {
+      bounds: window.getBounds(),
+      isMinimized: window.isMinimized(),
+      isMaximized: window.isMaximized(),
+      isFullScreen: window.isFullScreen()
+    });
+
     if (isWindowStuck(window)) {
       getLogger().warn('Window still stuck after reset, attempting to recreate window');
       const newWindow = new BrowserWindow(window.getBounds());
       newWindow.loadURL(window.webContents.getURL());
       window.close();
       initializeWindowStateHandlers(newWindow);
+      getLogger().info('New window created', {
+        bounds: newWindow.getBounds(),
+        isMinimized: newWindow.isMinimized(),
+        isMaximized: newWindow.isMaximized(),
+        isFullScreen: newWindow.isFullScreen()
+      });
     }
 
     windowStateChangeCount = 0;
@@ -241,16 +292,24 @@ function resetWindowState(window: BrowserWindow): void {
 
 function handleDPIChange(window: BrowserWindow): void {
   try {
-    const bounds = window.getBounds();
-    const display = screen.getDisplayMatching(bounds);
+    const oldBounds = window.getBounds();
+    const display = screen.getDisplayMatching(oldBounds);
     const scaleFactor = display.scaleFactor;
     
+    getLogger().info('Handling DPI change', {
+      oldBounds,
+      displayId: display.id,
+      scaleFactor
+    });
+
     const newBounds = {
-      x: Math.round(bounds.x / scaleFactor),
-      y: Math.round(bounds.y / scaleFactor),
-      width: Math.round(bounds.width / scaleFactor),
-      height: Math.round(bounds.height / scaleFactor),
+      x: Math.round(oldBounds.x / scaleFactor),
+      y: Math.round(oldBounds.y / scaleFactor),
+      width: Math.round(oldBounds.width / scaleFactor),
+      height: Math.round(oldBounds.height / scaleFactor),
     };
+
+    getLogger().info('Calculated new bounds after DPI change', newBounds);
 
     if (!isValidWindowBounds(newBounds, display)) {
       getLogger().warn('Invalid window bounds after DPI change, resetting window state');
@@ -258,6 +317,12 @@ function handleDPIChange(window: BrowserWindow): void {
     } else {
       setWindowBoundsSafely(window, newBounds);
     }
+
+    const finalBounds = window.getBounds();
+    getLogger().info('Final window bounds after DPI change', {
+      bounds: finalBounds,
+      isValidBounds: isValidWindowBounds(finalBounds, display)
+    });
   } catch (error) {
     getLogger().error('Error in handleDPIChange:', Errors.toLogFormat(error));
     resetWindowState(window);
@@ -266,21 +331,39 @@ function handleDPIChange(window: BrowserWindow): void {
 
 function handleWaylandResize(window: BrowserWindow): void {
   try {
-    const bounds = window.getBounds();
-    const display = screen.getDisplayMatching(bounds);
+    const currentBounds = window.getBounds();
+    const display = screen.getDisplayMatching(currentBounds);
     const { width: maxWidth, height: maxHeight } = display.workAreaSize;
 
+    getLogger().info('Handling Wayland resize', {
+      currentBounds,
+      displayId: display.id,
+      maxWidth,
+      maxHeight
+    });
+
     const newBounds = {
-      x: bounds.x,
-      y: bounds.y,
-      width: Math.min(bounds.width, maxWidth),
-      height: Math.min(bounds.height, maxHeight),
+      x: currentBounds.x,
+      y: currentBounds.y,
+      width: Math.min(currentBounds.width, maxWidth),
+      height: Math.min(currentBounds.height, maxHeight),
     };
 
-    if (newBounds.width !== bounds.width || newBounds.height !== bounds.height) {
-      getLogger().warn('Window resized beyond screen boundaries on Wayland, adjusting size');
+    if (newBounds.width !== currentBounds.width || newBounds.height !== currentBounds.height) {
+      getLogger().warn('Window resized beyond screen boundaries on Wayland, adjusting size', {
+        oldBounds: currentBounds,
+        newBounds
+      });
       setWindowBoundsSafely(window, newBounds);
+    } else {
+      getLogger().info('No adjustment needed for Wayland resize');
     }
+
+    const finalBounds = window.getBounds();
+    getLogger().info('Final window bounds after Wayland resize', {
+      bounds: finalBounds,
+      isValidBounds: isValidWindowBounds(finalBounds, display)
+    });
   } catch (error) {
     getLogger().error('Error in handleWaylandResize:', Errors.toLogFormat(error));
   }
