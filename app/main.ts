@@ -856,6 +856,20 @@ async function createWindow() {
     getLogger().debug(`Updated maximum window size: ${maxWidth}x${maxHeight}`);
   }
 
+  // Sanity check for window size
+  setInterval(() => {
+    const [width, height] = mainWindow.getSize();
+    const currentDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds());
+    const scaleFactor = currentDisplay.scaleFactor || 1;
+    const maxWidth = currentDisplay.workAreaSize.width * scaleFactor;
+    const maxHeight = currentDisplay.workAreaSize.height * scaleFactor;
+
+    if (width > maxWidth || height > maxHeight) {
+      getLogger().warn(`Window size (${width}x${height}) exceeds display limits (${maxWidth}x${maxHeight}). Resizing.`);
+      mainWindow.setSize(Math.min(width, maxWidth), Math.min(height, maxHeight));
+    }
+  }, 60000); // Check every minute
+
   function saveWindowStats() {
     if (!windowConfig) {
       return;
