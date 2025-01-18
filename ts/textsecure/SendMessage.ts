@@ -1042,6 +1042,7 @@ export default class MessageSender {
     timestamp: number;
     urgent: boolean;
   }>): Promise<void> {
+    log.info(`sendMessageProto: Starting to send message with timestamp ${timestamp}`);
     const accountManager = window.getAccountManager();
     try {
       if (accountManager.areKeysOutOfDate(ServiceIdKind.ACI)) {
@@ -1052,9 +1053,10 @@ export default class MessageSender {
         if (accountManager.areKeysOutOfDate(ServiceIdKind.ACI)) {
           throw new Error('Keys still out of date after update');
         }
+        log.info(`sendMessageProto/${timestamp}: Keys updated successfully`);
       }
     } catch (error) {
-      // TODO: DESKTOP-5642
+      log.error(`sendMessageProto/${timestamp}: Error updating keys`, error);
       callback({
         dataMessage: undefined,
         editMessage: undefined,
@@ -1063,6 +1065,7 @@ export default class MessageSender {
       return;
     }
 
+    log.info(`sendMessageProto/${timestamp}: Creating OutgoingMessage`);
     const outgoing = new OutgoingMessage({
       callback,
       contentHint,
@@ -1077,13 +1080,73 @@ export default class MessageSender {
       urgent,
     });
 
-    recipients.forEach(serviceId => {
-      drop(
-        this.queueJobForServiceId(serviceId, async () =>
-          outgoing.sendToServiceId(serviceId)
-        )
-      );
+    log.info(`sendMessageProto/${timestamp}: Queueing jobs for ${recipients.length} recipients`);
+    const sendQueue = new PQueue({ concurrency: 5 }); // Limit concurrent sends
+    const sendPromises = recipients.map(serviceId =>
+      sendQueue.add(() => this.doSendToServiceId(serviceId, outgoing, timestamp))
+    );
+
+    try {
+      await Promise.all(sendPromises);
+      log.info(`sendMessageProto/${timestamp}: All messages sent successfully`);
+    } catch (error) {
+      log.error(`sendMessageProto/${timestamp}: Error sending messages`, error);
+      throw error; // Propagate the error
+    }
+  }
+
+  private async doSendToServiceId(
+    serviceId: ServiceIdString,
+    outgoing: OutgoingMessage,
+    timestamp: number
+  ): Promise<void> {
+    const ourAci = window.textsecure.storage.user.getCheckedAci();
+    const deviceIds = await window.textsecure.storage.protocol.getDeviceIds({
+      ourServiceId: ourAci,
+      serviceId,
     });
+    log.info(`doSendToServiceId: Found ${deviceIds.length} devices for ${serviceId}`);
+
+    if (deviceIds.length === 0) {
+      log.info(`doSendToServiceId: No devices found, getting keys for ${serviceId}`);
+      await this.getKeysForServiceId(serviceId, null);
+    }
+
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await this.sendWithTimeout(serviceId, outgoing, timestamp, 30000); // 30 seconds timeout
+        log.info(`sendMessageProto/${timestamp}: Message sent successfully to ${serviceId}`);
+        return;
+      } catch (error) {
+        if (error.message.includes('timed out')) {
+          log.error(`sendMessageProto/${timestamp}: Send operation timed out for ${serviceId}`);
+          throw error;
+        }
+        if (attempt === maxRetries - 1) {
+          log.error(`sendMessageProto/${timestamp}: All attempts failed for ${serviceId}`, error);
+          throw error;
+        }
+        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+        log.warn(`doSendToServiceId: Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  private async sendWithTimeout(
+    serviceId: ServiceIdString,
+    outgoing: OutgoingMessage,
+    timestamp: number,
+    timeoutMs: number
+  ): Promise<void> {
+    return Promise.race([
+      this.reloadDevicesAndSend(serviceId, true)(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Send operation timed out for ${serviceId}`)), timeoutMs)
+      ),
+    ]);
   }
 
   async sendMessageProtoAndWait({
