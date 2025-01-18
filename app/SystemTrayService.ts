@@ -31,6 +31,7 @@ export class SystemTrayService {
   #isQuitting = false;
   #unreadCount = 0;
   #createTrayInstance: (icon: NativeImage) => Tray;
+  #lastWindowSize: { width: number; height: number } | null = null;
 
   constructor({ i18n, createTrayInstance }: SystemTrayServiceOptionsType) {
     log.info('System tray service: created');
@@ -65,6 +66,10 @@ export class SystemTrayService {
     if (newBrowserWindow) {
       newBrowserWindow.on('show', this.#render);
       newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('resize', () => {
+        const { width, height } = newBrowserWindow.getBounds();
+        this.#lastWindowSize = { width, height };
+      });
     }
 
     this.#browserWindow = newBrowserWindow;
@@ -118,91 +123,51 @@ export class SystemTrayService {
   }
 
   #render = (): void => {
-    if (this.#isEnabled && this.#browserWindow) {
-      this.#renderEnabled();
-      return;
-    }
-    this.#renderDisabled();
-  };
-
-  #renderEnabled() {
-    if (this.#isQuitting) {
-      log.info('System tray service: not rendering the tray, quitting');
+    const { tray } = this;
+    if (!tray) {
       return;
     }
 
-    log.info('System tray service: rendering the tray');
-
-    this.#tray ??= this.#createTray();
-    const tray = this.#tray;
-    const browserWindow = this.#browserWindow;
-
-    try {
-      tray.setImage(getIcon(this.#unreadCount));
-    } catch (err: unknown) {
-      log.warn(
-        'System tray service: failed to set preferred image. Falling back...'
-      );
-      tray.setImage(getDefaultIcon());
+    const { browserWindow } = this;
+    if (!browserWindow) {
+      tray.destroy();
+      this.#tray = undefined;
+      return;
     }
 
-    // NOTE: we want to have the show/hide entry available in the tray icon
-    // context menu, since the 'click' event may not work on all platforms.
-    // For details please refer to:
-    // https://github.com/electron/electron/blob/master/docs/api/tray.md.
     tray.setContextMenu(
       Menu.buildFromTemplate([
         {
           id: 'toggleWindowVisibility',
-          ...(browserWindow?.isVisible()
-            ? {
-                label: this.#i18n('icu:hide'),
-                click: () => {
-                  log.info(
-                    'System tray service: hiding the window from the context menu'
-                  );
-                  // We re-fetch `this.browserWindow` here just in case the browser window
-                  //   has changed while the context menu was open. Same applies in the
-                  //   "show" case below.
-                  this.#browserWindow?.hide();
-                },
+          label: browserWindow.isVisible()
+            ? this.#i18n('hide')
+            : this.#i18n('show'),
+          click: () => {
+            if (browserWindow.isVisible()) {
+              this.#lastWindowSize = browserWindow.getBounds();
+              browserWindow.hide();
+            } else {
+              if (this.#lastWindowSize) {
+                browserWindow.setBounds(this.#lastWindowSize);
               }
-            : {
-                label: this.#i18n('icu:show'),
-                click: () => {
-                  log.info(
-                    'System tray service: showing the window from the context menu'
-                  );
-                  if (this.#browserWindow) {
-                    this.#browserWindow.show();
-                    focusAndForceToTop(this.#browserWindow);
-                  }
-                },
-              }),
+              focusAndForceToTop(browserWindow);
+            }
+          },
         },
         {
           id: 'quit',
-          label: this.#i18n('icu:quit'),
+          label: this.#i18n('quit'),
           click: () => {
-            log.info(
-              'System tray service: quitting the app from the context menu'
-            );
+            this.#isQuitting = true;
             app.quit();
           },
         },
       ])
     );
-  }
 
-  #renderDisabled() {
-    log.info('System tray service: rendering no tray');
-
-    if (!this.#tray) {
-      return;
-    }
-    this.#tray.destroy();
-    this.#tray = undefined;
-  }
+    tray.setImage(this.#getIcon());
+    tray.setToolTip(this.#getTitle());
+  };
 
   #createTray(): Tray {
     log.info('System tray service: creating the tray');

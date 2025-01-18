@@ -690,6 +690,8 @@ async function createWindow() {
     ? Math.min(windowConfig.height, maxHeight)
     : DEFAULT_HEIGHT;
 
+  const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
+
   const windowOptions: Electron.BrowserWindowConstructorOptions = {
     show: false,
     width,
@@ -703,6 +705,8 @@ async function createWindow() {
       : await getBackgroundColor({ signalColors: true }),
     webPreferences: {
       ...defaultWebPrefs,
+    },
+    ...(isWayland ? { useContentSize: true } : {}),
       nodeIntegration: false,
       nodeIntegrationInWorker: false,
       sandbox: false,

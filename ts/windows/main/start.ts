@@ -49,6 +49,19 @@ if (window.SignalContext.config.proxyUrl) {
   log.info('Using provided proxy url');
 }
 
+// Prevent unnecessary resizing on Wayland
+if (process.env.XDG_SESSION_TYPE === 'wayland') {
+  let lastSize = { width: window.innerWidth, height: window.innerHeight };
+  window.addEventListener('resize', () => {
+    const currentSize = { width: window.innerWidth, height: window.innerHeight };
+    if (Math.abs(currentSize.width - lastSize.width) <= 1 && Math.abs(currentSize.height - lastSize.height) <= 1) {
+      window.resizeTo(lastSize.width, lastSize.height);
+    } else {
+      lastSize = currentSize;
+    }
+  });
+}
+
 window.Whisper.events = clone(window.Backbone.Events);
 initMessageCleanup();
 startConversationController();
