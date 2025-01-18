@@ -394,34 +394,69 @@ $loading-height: 16px;
     z-index: variables.$z-index-popup-overlay;
   }
 
-  color: variables.$color-black;
-  a {
-    color: variables.$color-ultramarine;
-  }
-  background: linear-gradient(
-    to bottom,
-    /* (1 - 0.41) * 255 + 0.41 * 213*/ rgb(238, 238, 238) 0%,
-    /* (1 - 0.19) * 255 + 0.19 * 191*/ rgb(243, 243, 243) 12%,
-    rgb(255, 255, 255) 27%,
-    rgb(255, 255, 255) 60%,
-    /* (1 - 0.19) * 255 + 0.19 * 222*/ rgb(249, 249, 249) 85%,
-    /* (1 - 0.27) * 255 + 0.27 * 98 */ rgb(213, 213, 213) 100%
-  );
   display: flex;
   align-items: center;
   text-align: center;
 
   font-size: 10pt;
+
+  @include mixins.light-theme {
+    color: variables.$color-black;
+    background: linear-gradient(
+      to bottom,
+      rgb(238, 238, 238) 0%,
+      rgb(243, 243, 243) 12%,
+      rgb(255, 255, 255) 27%,
+      rgb(255, 255, 255) 60%,
+      rgb(249, 249, 249) 85%,
+      rgb(213, 213, 213) 100%
+    );
+  }
+
+  @include mixins.dark-theme {
+    color: variables.$color-gray-05;
+    background: linear-gradient(
+      to bottom,
+      variables.$color-gray-95 0%,
+      variables.$color-gray-90 100%
+    );
+  }
+
+  a {
+    @include mixins.light-theme {
+      color: variables.$color-ultramarine;
+    }
+    @include mixins.dark-theme {
+      color: variables.$color-ultramarine-light;
+    }
+  }
+
   input {
     font-size: 12pt;
-    border: 2px solid variables.$color-ultramarine;
     padding: 0.5em;
     text-align: center;
+
+    @include mixins.light-theme {
+      border: 2px solid variables.$color-ultramarine;
+      background-color: variables.$color-white;
+      color: variables.$color-black;
+    }
+
+    @include mixins.dark-theme {
+      border: 2px solid variables.$color-ultramarine-light;
+      background-color: variables.$color-gray-90;
+      color: variables.$color-gray-05;
+    }
   }
 
   .phone-input .number {
     margin-top: 1em;
     width: 20em;
+
+    @include mixins.dark-theme {
+      background-color: variables.$color-gray-90;
+      color: variables.$color-gray-05;
+    }
   }
 
   @media (min-height: 750px) and (min-width: 700px) {
