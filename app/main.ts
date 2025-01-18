@@ -151,9 +151,43 @@ let preferredSystemLocales: Array<string> | undefined;
 let localeOverride: string | null | undefined;
 
 // Variables for storing window size on Wayland
-// This is needed to prevent the window from growing when hidden and reopened
 let storedWindowSize: { width: number; height: number } | undefined;
 const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
+
+function storeWindowSizeBeforeHide() {
+  if (isWayland && mainWindow) {
+    const [width, height] = mainWindow.getSize();
+    storedWindowSize = { width, height };
+    if (logger) {
+      logger.info(`Storing window size: ${width}x${height}`);
+    }
+  }
+}
+
+function setWindowSize(width: number, height: number) {
+  if (mainWindow) {
+    if (isWayland && storedWindowSize) {
+      // Only allow setting size to the stored size
+      if (width === storedWindowSize.width && height === storedWindowSize.height) {
+        mainWindow.setSize(width, height);
+      } else if (logger) {
+        logger.info(`Prevented resizing to ${width}x${height}`);
+      }
+    } else {
+      mainWindow.setSize(width, height);
+    }
+  }
+}
+
+// Update other occurrences of mainWindow.setSize
+const originalSetSize = BrowserWindow.prototype.setSize;
+BrowserWindow.prototype.setSize = function (width: number, height: number) {
+  if (this === mainWindow) {
+    setWindowSize(width, height);
+  } else {
+    originalSetSize.call(this, width, height);
+  }
+};
 
 let resolvedTranslationsLocale: LocaleType | undefined;
 let settingsChannel: SettingsChannel | undefined;
@@ -162,13 +196,6 @@ const activeWindows = new Set<BrowserWindow>();
 
 function getMainWindow() {
   return mainWindow;
-}
-
-function storeWindowSizeBeforeHide() {
-  if (isWayland && mainWindow) {
-    const [width, height] = mainWindow.getSize();
-    storedWindowSize = { width, height };
-  }
 }
 
 const development =
@@ -261,11 +288,20 @@ function showWindow() {
     focusAndForceToTop(mainWindow);
   } else {
     if (isWayland && storedWindowSize) {
-      mainWindow.setSize(storedWindowSize.width, storedWindowSize.height);
+      setWindowSize(storedWindowSize.width, storedWindowSize.height);
     }
     mainWindow.show();
   }
 }
+
+// Update other occurrences of mainWindow.show()
+const originalShow = BrowserWindow.prototype.show;
+BrowserWindow.prototype.show = function () {
+  if (this === mainWindow && isWayland && storedWindowSize) {
+    setWindowSize(storedWindowSize.width, storedWindowSize.height);
+  }
+  originalShow.call(this);
+};
 
 if (!process.mas) {
   console.log('making app single instance');
@@ -924,10 +960,10 @@ async function createWindow() {
      */
     if (mainWindow) {
       if (mainWindow.isFullScreen()) {
-mainWindow.once('leave-full-screen', () => {
-  storeWindowSizeBeforeHide();
-  mainWindow?.hide();
-});
+        mainWindow.once('leave-full-screen', () => {
+          storeWindowSizeBeforeHide();
+          mainWindow?.hide();
+        });
         mainWindow.setFullScreen(false);
       } else {
         storeWindowSizeBeforeHide();
