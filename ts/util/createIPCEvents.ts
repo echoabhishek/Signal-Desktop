@@ -581,8 +581,16 @@ export function createIPCEvents(
       const timeSinceLastNotificationClick = now - (this.lastNotificationClickTime || 0);
       this.lastNotificationClickTime = now;
 
+      log.info('showConversationViaNotification', {
+        conversationId,
+        messageId,
+        storyId,
+        timeSinceLastNotificationClick,
+      });
+
       if (conversationId) {
         if (storyId) {
+          log.info('Viewing story', { storyId });
           window.reduxActions.stories.viewStory({
             storyId,
             storyViewMode: StoryViewModeType.Single,
@@ -591,12 +599,19 @@ export function createIPCEvents(
         } else {
           const shouldScrollToMessage = timeSinceLastNotificationClick > 2000 && messageId !== this.lastScrolledMessageId;
           this.lastScrolledMessageId = shouldScrollToMessage ? messageId : null;
+          log.info('Showing conversation', {
+            conversationId,
+            messageId,
+            shouldScrollToMessage,
+            lastScrolledMessageId: this.lastScrolledMessageId,
+          });
           window.reduxActions.conversations.showConversation({
             conversationId,
             messageId: shouldScrollToMessage ? messageId : undefined,
           });
         }
       } else {
+        log.info('Opening inbox');
         window.reduxActions.app.openInbox();
       }
     },
