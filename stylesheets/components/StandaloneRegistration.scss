@@ -1,0 +1,26 @@
+.standalone-registration {
+  &.theme-aware {
+    // Light theme styles
+    background-color: #ffffff;
+    color: #000000;
+
+    // Dark theme styles
+    @media (prefers-color-scheme: dark) {
+      background-color: #1b1b1b;
+      color: #ffffff;
+    }
+
+    // Add more theme-aware styles for other elements as needed
+    input, button {
+      // Light theme styles
+      background-color: #f0f0f0;
+      color: #000000;
+
+      // Dark theme styles
+      @media (prefers-color-scheme: dark) {
+        background-color: #2c2c2c;
+        color: #ffffff;
+      }
+    }
+  }
+}

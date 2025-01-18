@@ -453,6 +453,15 @@ export function StandaloneRegistration({
 }: PropsType): JSX.Element {
   useEffect(() => {
     readyForUpdates();
+    const rootElement = document.querySelector('.standalone-registration');
+    if (rootElement) {
+      rootElement.classList.add('theme-aware');
+    }
+    return () => {
+      if (rootElement) {
+        rootElement.classList.remove('theme-aware');
+      }
+    };
   }, [readyForUpdates]);
 
   const [stageData, setStageData] = useState<StageData>({
