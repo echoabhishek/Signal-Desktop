@@ -751,13 +751,46 @@ async function createWindow() {
   mainWindow = new BrowserWindow(windowOptions);
 
   if (isWayland) {
+    const ensureValidWindowSize = () => {
+      const currentDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds());
+      const { workAreaSize } = currentDisplay;
+      lastWindowSize = [
+        Math.max(MIN_WIDTH, Math.min(lastWindowSize[0], workAreaSize.width)),
+        Math.max(MIN_HEIGHT, Math.min(lastWindowSize[1], workAreaSize.height))
+      ];
+    };
+
     mainWindow.on('hide', () => {
-      lastWindowSize = mainWindow.getSize();
+      if (!mainWindow.isFullScreen()) {
+        lastWindowSize = mainWindow.getSize();
+        ensureValidWindowSize();
+      }
     });
 
     mainWindow.on('show', () => {
+      if (!mainWindow.isFullScreen()) {
+        ensureValidWindowSize();
+        mainWindow.setSize(lastWindowSize[0], lastWindowSize[1]);
+      }
+    });
+
+    mainWindow.on('enter-full-screen', () => {
+      // Store the window size before entering fullscreen
+      lastWindowSize = mainWindow.getSize();
+      ensureValidWindowSize();
+    });
+
+    mainWindow.on('leave-full-screen', () => {
+      // Restore the window size after leaving fullscreen
+      ensureValidWindowSize();
       mainWindow.setSize(lastWindowSize[0], lastWindowSize[1]);
     });
+
+    // Handle moving between displays
+    mainWindow.on('move', ensureValidWindowSize);
+
+    // Periodically check and update window size
+    setInterval(ensureValidWindowSize, 1000);
   }
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);
