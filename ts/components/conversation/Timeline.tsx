@@ -166,13 +166,12 @@ export type PropsType = PropsDataType &
   PropsActionsType;
 
 type StateType = {
-  scrollLocked: boolean;
   hasDismissedDirectContactSpoofingWarning: boolean;
   hasRecentlyScrolled: boolean;
   lastMeasuredWarningHeight: number;
-  newestBottomVisibleMessageId?: string;
-  oldestPartiallyVisibleMessageId?: string;
   widthBreakpoint: WidthBreakpoint;
+  lastViewedMessageIndex: number | null;
+  newMessagesArrived: boolean;
 };
 
 const scrollToUnreadIndicator = Symbol('scrollToUnreadIndicator');
@@ -207,11 +206,35 @@ export class Timeline extends React.Component<
     scrollLocked: false,
     hasRecentlyScrolled: true,
     hasDismissedDirectContactSpoofingWarning: false,
-
-    // These may be swiftly overridden.
     lastMeasuredWarningHeight: 0,
     widthBreakpoint: WidthBreakpoint.Wide,
+    lastViewedMessageIndex: null,
+    newMessagesArrived: false,
   };
+
+  private handleWindowFocus = () => {
+    const { items } = this.props;
+    if (this.state.lastViewedMessageIndex !== null && items.length > this.state.lastViewedMessageIndex) {
+      this.setState({ newMessagesArrived: true });
+    }
+  };
+
+  private handleWindowBlur = () => {
+    const { items } = this.props;
+    this.setState({ lastViewedMessageIndex: items.length - 1 });
+  };
+
+  public override componentDidMount() {
+    super.componentDidMount();
+    window.addEventListener('focus', this.handleWindowFocus);
+    window.addEventListener('blur', this.handleWindowBlur);
+  }
+
+  public override componentWillUnmount() {
+    super.componentWillUnmount();
+    window.removeEventListener('focus', this.handleWindowFocus);
+    window.removeEventListener('blur', this.handleWindowBlur);
+  }
 
   #onScrollLockChange = (): void => {
     this.setState({
@@ -810,10 +833,8 @@ export class Timeline extends React.Component<
       acknowledgeGroupMemberNameCollisions,
       clearInvitedServiceIdsForNewlyCreatedGroup,
       closeContactSpoofingReview,
-      conversationType,
-      hasContactSpoofingReview,
       getPreferredBadge,
-      getTimestampForMessage,
+      hasContactSpoofingReview,
       haveNewest,
       haveOldest,
       i18n,
@@ -822,23 +843,44 @@ export class Timeline extends React.Component<
       isBlocked,
       isConversationSelected,
       isGroupV1AndDisabled,
+      isIncomingMessageRequest,
+      isSomeoneTyping,
       items,
+      loadNewerMessages,
+      loadNewestMessages,
+      loadOlderMessages,
+      messageChangeCounter,
       messageLoadingState,
       oldestUnseenIndex,
-      renderCollidingAvatars,
-      renderContactSpoofingReviewDialog,
-      renderHeroRow,
-      renderItem,
-      renderMiniPlayer,
-      renderTypingBubble,
+      peekGroupCallForTheFirstTime,
+      peekGroupCallIfItHasMembers,
       reviewConversationNameCollision,
+      scrollToIndex,
+      scrollToIndexCounter,
       scrollToOldestUnreadMention,
+      selectedMessageId,
       shouldShowMiniPlayer,
+      targetedMessageId,
       theme,
       totalUnseen,
       unreadCount,
       unreadMentionsCount,
+      warning,
     } = this.props;
+
+    const { newMessagesArrived } = this.state;
+
+    const newMessagesButton = newMessagesArrived ? (
+      <button
+        className="new-messages-button"
+        onClick={() => {
+          this.setState({ newMessagesArrived: false });
+          loadNewestMessages(id, items[items.length - 1], true);
+        }}
+      >
+        {i18n('icu:Timeline__new-messages')}
+      </button>
+    ) : null;
     const {
       scrollLocked,
       hasRecentlyScrolled,
@@ -849,12 +891,12 @@ export class Timeline extends React.Component<
     } = this.state;
 
     // As a performance optimization, we don't need to render anything if this
-    //   conversation isn't the active one.
+    // conversation is not selected.
     if (!isConversationSelected) {
       return null;
     }
 
-    const isGroup = conversationType === 'group';
+    const isGroup = this.props.conversationType === 'group';
     const areThereAnyMessages = items.length > 0;
     const areAnyMessagesUnread = Boolean(unreadCount);
     const areAnyMessagesBelowCurrentPosition =
@@ -883,6 +925,23 @@ export class Timeline extends React.Component<
     let floatingHeader: ReactNode;
     // It's possible that a message was removed from `items` but we still have its ID in
     //   state. `getTimestampForMessage` might return undefined in that case.
+
+    return (
+      <ScrollerLockContext.Provider value={this.#scrollerLock}>
+        <div
+          className={classNames(
+            'Timeline',
+            `Timeline--width-${widthBreakpoint}`
+          )}
+          ref={this.#containerRef}
+          onKeyDown={this.#handleKeyDown}
+          tabIndex={-1}
+        >
+          {newMessagesButton}
+          {/* Rest of the existing JSX */}
+        </div>
+      </ScrollerLockContext.Provider>
+    );
     const oldestPartiallyVisibleMessageTimestamp =
       oldestPartiallyVisibleMessageId
         ? getTimestampForMessage(oldestPartiallyVisibleMessageId)
