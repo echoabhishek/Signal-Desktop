@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import * as log from '../ts/logging/log';
 import type { LocalizerType } from '../ts/types/I18N';
-import { saveWindowState, restoreWindowState } from './windowManager';
+import { saveWindowState, restoreWindowState, clearWindowState } from './windowManager';
 
 export type SystemTrayServiceOptionsType = Readonly<{
   i18n: LocalizerType;
@@ -66,6 +66,11 @@ export class SystemTrayService {
     if (newBrowserWindow) {
       newBrowserWindow.on('show', this.#render);
       newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('resize', () => saveWindowState(newBrowserWindow));
+      newBrowserWindow.on('maximize', () => saveWindowState(newBrowserWindow));
+      newBrowserWindow.on('unmaximize', () => saveWindowState(newBrowserWindow));
+      newBrowserWindow.on('enter-full-screen', () => saveWindowState(newBrowserWindow));
+      newBrowserWindow.on('leave-full-screen', () => saveWindowState(newBrowserWindow));
     }
 
     this.#browserWindow = newBrowserWindow;
@@ -112,6 +117,7 @@ export class SystemTrayService {
 
     this.#tray = undefined;
     this.#isQuitting = true;
+    clearWindowState();
   }
 
   isVisible(): boolean {
