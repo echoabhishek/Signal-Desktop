@@ -793,32 +793,68 @@ async function createWindow() {
     systemTrayService.setMainWindow(mainWindow);
   }
 
-  // Save window size when hiding
+  let lastWindowState = {
+    isFullScreen: false,
+    isMaximized: false,
+  };
+
+  // Save window size and state when hiding
   mainWindow.on('hide', () => {
     const [width, height] = mainWindow.getSize();
     lastWindowSize = { width, height };
-    getLogger().info(`Window hidden. Saved size: ${width}x${height}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+    lastWindowState = {
+      isFullScreen: mainWindow.isFullScreen(),
+      isMaximized: mainWindow.isMaximized(),
+    };
+    getLogger().debug(`Window hidden. Saved size: ${width}x${height}. Is fullscreen: ${lastWindowState.isFullScreen}. Is maximized: ${lastWindowState.isMaximized}`);
   });
 
-  // Restore window size when showing
+  // Restore window size and state when showing
   mainWindow.on('show', () => {
-    if (lastWindowSize) {
-      if (!mainWindow.isFullScreen() && !mainWindow.isMaximized()) {
-        mainWindow.setSize(lastWindowSize.width, lastWindowSize.height);
-        getLogger().info(`Window shown. Restored size: ${lastWindowSize.width}x${lastWindowSize.height}`);
+    if (lastWindowSize && lastWindowState) {
+      if (lastWindowState.isFullScreen) {
+        mainWindow.setFullScreen(true);
+      } else if (lastWindowState.isMaximized) {
+        mainWindow.maximize();
       } else {
-        getLogger().info(`Window shown. Size not restored due to fullscreen or maximized state.`);
+        const currentDisplay = screen.getDisplayNearestPoint({ x: lastWindowSize.width / 2, y: lastWindowSize.height / 2 });
+        const scaleFactor = currentDisplay.scaleFactor || 1;
+        mainWindow.setSize(
+          Math.min(lastWindowSize.width, currentDisplay.workAreaSize.width * scaleFactor),
+          Math.min(lastWindowSize.height, currentDisplay.workAreaSize.height * scaleFactor)
+        );
       }
+      getLogger().debug(`Window shown. Restored state: fullscreen=${lastWindowState.isFullScreen}, maximized=${lastWindowState.isMaximized}`);
     }
     const [currentWidth, currentHeight] = mainWindow.getSize();
-    getLogger().info(`Current window size after show: ${currentWidth}x${currentHeight}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+    getLogger().debug(`Current window size after show: ${currentWidth}x${currentHeight}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
   });
 
   // Log window size changes
   mainWindow.on('resize', () => {
     const [width, height] = mainWindow.getSize();
-    getLogger().info(`Window resized: ${width}x${height}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+    getLogger().debug(`Window resized: ${width}x${height}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
   });
+
+  // Log display changes
+  screen.on('display-added', () => {
+    getLogger().debug('Display added. Updating window size constraints.');
+    updateWindowSizeConstraints();
+  });
+
+  screen.on('display-removed', () => {
+    getLogger().debug('Display removed. Updating window size constraints.');
+    updateWindowSizeConstraints();
+  });
+
+  function updateWindowSizeConstraints() {
+    const currentDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds());
+    const scaleFactor = currentDisplay.scaleFactor || 1;
+    const maxWidth = currentDisplay.workAreaSize.width * scaleFactor;
+    const maxHeight = currentDisplay.workAreaSize.height * scaleFactor;
+    mainWindow.setMaximumSize(maxWidth, maxHeight);
+    getLogger().debug(`Updated maximum window size: ${maxWidth}x${maxHeight}`);
+  }
 
   function saveWindowStats() {
     if (!windowConfig) {
