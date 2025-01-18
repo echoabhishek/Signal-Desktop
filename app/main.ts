@@ -789,6 +789,14 @@ async function createWindow() {
     // Handle moving between displays
     mainWindow.on('move', ensureValidWindowSize);
 
+    // Handle manual window resizing
+    mainWindow.on('resize', () => {
+      if (!mainWindow.isFullScreen()) {
+        lastWindowSize = mainWindow.getSize();
+        ensureValidWindowSize();
+      }
+    });
+
     // Periodically check and update window size
     setInterval(ensureValidWindowSize, 1000);
   }
