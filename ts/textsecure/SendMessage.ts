@@ -1109,30 +1109,68 @@ export default class MessageSender {
 
     if (deviceIds.length === 0) {
       log.info(`doSendToServiceId: No devices found, getting keys for ${serviceId}`);
-      await this.getKeysForServiceId(serviceId, null);
+      try {
+        await this.getKeysForServiceId(serviceId, null);
+      } catch (error) {
+        log.error(`doSendToServiceId: Failed to get keys for ${serviceId}`, error);
+        throw new Error(`Failed to get keys for ${serviceId}: ${error.message}`);
+      }
     }
 
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
+    let lastError: Error | null = null;
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         await this.sendWithTimeout(serviceId, outgoing, timestamp, 30000); // 30 seconds timeout
         log.info(`sendMessageProto/${timestamp}: Message sent successfully to ${serviceId}`);
         return;
       } catch (error) {
-        if (error.message.includes('timed out')) {
-          log.error(`sendMessageProto/${timestamp}: Send operation timed out for ${serviceId}`);
+        lastError = error;
+        if (error instanceof HTTPError) {
+          if (error.code === 404) {
+            log.error(`sendMessageProto/${timestamp}: Recipient not found: ${serviceId}`);
+            throw new Error(`Recipient not found: ${serviceId}`);
+          } else if (error.code === 413) {
+            log.error(`sendMessageProto/${timestamp}: Message too large for ${serviceId}`);
+            throw new Error(`Message too large for ${serviceId}`);
+          } else if (error.code >= 500) {
+            log.warn(`sendMessageProto/${timestamp}: Server error ${error.code} for ${serviceId}`);
+          } else {
+            log.error(`sendMessageProto/${timestamp}: HTTP error ${error.code} for ${serviceId}`);
+          }
+        } else {
+          log.error(`sendMessageProto/${timestamp}: Unexpected error for ${serviceId}`, error);
+        }
+
+        if (this.isRetryableError(error)) {
+          if (attempt === maxRetries - 1) {
+            log.error(`sendMessageProto/${timestamp}: All retry attempts failed for ${serviceId}`, error);
+            break;
+          }
+          const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+          log.warn(`doSendToServiceId: Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          log.error(`sendMessageProto/${timestamp}: Non-retryable error for ${serviceId}`, error);
           throw error;
         }
-        if (attempt === maxRetries - 1) {
-          log.error(`sendMessageProto/${timestamp}: All attempts failed for ${serviceId}`, error);
-          throw error;
-        }
-        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
-        log.warn(`doSendToServiceId: Attempt ${attempt + 1} failed, retrying in ${delay}ms...`, error);
-        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
+
+    if (lastError) {
+      throw lastError;
+    }
+  }
+
+  private isRetryableError(error: Error): boolean {
+    if (error instanceof HTTPError) {
+      // Retry on server errors and specific client errors
+      return error.code >= 500 || [408, 429].includes(error.code);
+    }
+    // Retry on network errors and timeouts
+    return error.message.includes('timed out') || error.message.includes('network error');
   }
 
   private async sendWithTimeout(
