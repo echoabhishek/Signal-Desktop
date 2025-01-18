@@ -138,7 +138,8 @@ if (OS.isMacOS()) {
 // Keep a global reference of the window object, if you don't, the window will
 //   be closed automatically when the JavaScript object is garbage collected.
 let mainWindow: BrowserWindow | undefined;
-let mainWindowCreated = false;
+let lastWindowSize: { width: number; height: number } | undefined;
+
 let loadingWindow: BrowserWindow | undefined;
 
 // Create a buffered logger to hold our log lines until we fully initialize
@@ -775,7 +776,6 @@ async function createWindow() {
     settingsChannel.setMainWindow(mainWindow);
   }
 
-  mainWindowCreated = true;
   setupSpellChecker(
     mainWindow,
     getPreferredSystemLocales(),
@@ -792,6 +792,33 @@ async function createWindow() {
   if (systemTrayService) {
     systemTrayService.setMainWindow(mainWindow);
   }
+
+  // Save window size when hiding
+  mainWindow.on('hide', () => {
+    const [width, height] = mainWindow.getSize();
+    lastWindowSize = { width, height };
+    getLogger().info(`Window hidden. Saved size: ${width}x${height}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+  });
+
+  // Restore window size when showing
+  mainWindow.on('show', () => {
+    if (lastWindowSize) {
+      if (!mainWindow.isFullScreen() && !mainWindow.isMaximized()) {
+        mainWindow.setSize(lastWindowSize.width, lastWindowSize.height);
+        getLogger().info(`Window shown. Restored size: ${lastWindowSize.width}x${lastWindowSize.height}`);
+      } else {
+        getLogger().info(`Window shown. Size not restored due to fullscreen or maximized state.`);
+      }
+    }
+    const [currentWidth, currentHeight] = mainWindow.getSize();
+    getLogger().info(`Current window size after show: ${currentWidth}x${currentHeight}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+  });
+
+  // Log window size changes
+  mainWindow.on('resize', () => {
+    const [width, height] = mainWindow.getSize();
+    getLogger().info(`Window resized: ${width}x${height}. Is fullscreen: ${mainWindow.isFullScreen()}. Is maximized: ${mainWindow.isMaximized()}`);
+  });
 
   function saveWindowStats() {
     if (!windowConfig) {

@@ -63,8 +63,14 @@ export class SystemTrayService {
     }
 
     if (newBrowserWindow) {
-      newBrowserWindow.on('show', this.#render);
-      newBrowserWindow.on('hide', this.#render);
+      newBrowserWindow.on('show', () => {
+        this.#render();
+        // Don't modify window size here, as it's handled in main.ts
+      });
+      newBrowserWindow.on('hide', () => {
+        this.#render();
+        // Don't modify window size here, as it's handled in main.ts
+      });
     }
 
     this.#browserWindow = newBrowserWindow;
