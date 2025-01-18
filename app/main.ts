@@ -100,6 +100,19 @@ import type { CreateTemplateOptionsType } from './menu';
 import { createTemplate } from './menu';
 
 const getLogger = logging.getLogger;
+
+function safelyStoreWindowBounds(window: BrowserWindow): void {
+  try {
+    if (!window.isDestroyed() && !window.isMinimized() && !window.isMaximized() && !window.isFullScreen()) {
+      storedWindowBounds = window.getBounds();
+      getLogger().info('Stored window bounds:', storedWindowBounds);
+    } else {
+      getLogger().info('Not storing window bounds due to window state');
+    }
+  } catch (error) {
+    getLogger().error('Error storing window bounds:', Errors.toLogFormat(error));
+  }
+}
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
 import { isProduction } from '../ts/util/version';
@@ -925,15 +938,13 @@ async function createWindow() {
 if (mainWindow.isFullScreen()) {
   mainWindow.once('leave-full-screen', () => {
     if (mainWindow) {
-      storedWindowBounds = mainWindow.getBounds();
-      getLogger().info('Storing window bounds before hiding:', storedWindowBounds);
+      safelyStoreWindowBounds(mainWindow);
       mainWindow.hide();
     }
   });
   mainWindow.setFullScreen(false);
 } else {
-  storedWindowBounds = mainWindow.getBounds();
-  getLogger().info('Storing window bounds before hiding:', storedWindowBounds);
+  safelyStoreWindowBounds(mainWindow);
   mainWindow.hide();
 }
     }
