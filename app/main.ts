@@ -101,21 +101,31 @@ import { createTemplate } from './menu';
 
 const getLogger = logging.getLogger;
 
+function isValidWindowBounds(bounds: Electron.Rectangle, display: Electron.Display): boolean {
+  const { width, height, x, y } = bounds;
+  const { workArea } = display;
+  return (
+    width > 0 &&
+    height > 0 &&
+    width <= workArea.width &&
+    height <= workArea.height &&
+    x >= workArea.x &&
+    y >= workArea.y &&
+    x + width <= workArea.x + workArea.width &&
+    y + height <= workArea.y + workArea.height
+  );
+}
+
 function safelyStoreWindowBounds(window: BrowserWindow): void {
   try {
     if (!window.isDestroyed() && !window.isMinimized() && !window.isMaximized() && !window.isFullScreen()) {
       const newBounds = window.getBounds();
       const display = screen.getDisplayMatching(newBounds);
-      if (display) {
-        const { width, height } = display.workAreaSize;
-        if (newBounds.width <= width && newBounds.height <= height) {
-          storedWindowBounds = newBounds;
-          getLogger().info('Stored window bounds:', storedWindowBounds);
-        } else {
-          getLogger().warn('Not storing window bounds: window size exceeds display work area');
-        }
+      if (display && isValidWindowBounds(newBounds, display)) {
+        storedWindowBounds = newBounds;
+        getLogger().info('Stored window bounds:', storedWindowBounds);
       } else {
-        getLogger().warn('Not storing window bounds: unable to find matching display');
+        getLogger().warn('Not storing invalid window bounds:', newBounds);
       }
     } else {
       getLogger().info('Not storing window bounds due to window state');
@@ -129,16 +139,18 @@ function restoreWindowBounds(window: BrowserWindow): void {
   try {
     if (storedWindowBounds) {
       const display = screen.getDisplayMatching(storedWindowBounds);
-      if (display) {
-        const { width, height } = display.workAreaSize;
-        if (storedWindowBounds.width <= width && storedWindowBounds.height <= height) {
-          window.setBounds(storedWindowBounds);
-          getLogger().info('Restored window bounds:', storedWindowBounds);
-        } else {
-          getLogger().warn('Not restoring window bounds: stored size exceeds current display work area');
-        }
+      if (display && isValidWindowBounds(storedWindowBounds, display)) {
+        window.setBounds(storedWindowBounds);
+        getLogger().info('Restored window bounds:', storedWindowBounds);
       } else {
-        getLogger().warn('Not restoring window bounds: unable to find matching display');
+        getLogger().warn('Not restoring invalid window bounds:', storedWindowBounds);
+        // Fallback: center the window on the primary display
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const { width, height } = window.getBounds();
+        const x = Math.round(primaryDisplay.workArea.x + (primaryDisplay.workArea.width - width) / 2);
+        const y = Math.round(primaryDisplay.workArea.y + (primaryDisplay.workArea.height - height) / 2);
+        window.setBounds({ x, y, width, height });
+        getLogger().info('Fallback: Centered window on primary display');
       }
     } else {
       getLogger().info('No stored window bounds to restore');
@@ -149,8 +161,21 @@ function restoreWindowBounds(window: BrowserWindow): void {
 }
 
 const handleWindowStateChange = debounce((window: BrowserWindow) => {
-  getLogger().info('Window state changed');
-  safelyStoreWindowBounds(window);
+  const isMinimized = window.isMinimized();
+  const isMaximized = window.isMaximized();
+  const isFullScreen = window.isFullScreen();
+  const bounds = window.getBounds();
+  
+  getLogger().info('Window state changed', {
+    isMinimized,
+    isMaximized,
+    isFullScreen,
+    bounds,
+  });
+
+  if (!isMinimized && !isMaximized && !isFullScreen) {
+    safelyStoreWindowBounds(window);
+  }
 }, 250, { maxWait: 1000 });  // Debounce for 250ms, but invoke after 1 second max
 
 function initializeWindowStateHandlers(window: BrowserWindow): void {
@@ -176,6 +201,7 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
       handleWindowStateChange(window);
     },
     moved: () => handleWindowStateChange(window),
+    resize: () => handleWindowStateChange(window),
   };
 
   Object.entries(handlers).forEach(([event, handler]) => {
@@ -187,11 +213,23 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
   screen.on('display-removed', () => handleWindowStateChange(window));
   screen.on('display-metrics-changed', () => handleWindowStateChange(window));
 
+  // Handle window moving to a different display
+  let lastDisplayId = screen.getDisplayMatching(window.getBounds()).id;
+  window.on('move', () => {
+    const currentDisplayId = screen.getDisplayMatching(window.getBounds()).id;
+    if (currentDisplayId !== lastDisplayId) {
+      getLogger().info('Window moved to a different display', { from: lastDisplayId, to: currentDisplayId });
+      lastDisplayId = currentDisplayId;
+      handleWindowStateChange(window);
+    }
+  });
+
   // Cleanup function
   return () => {
     Object.entries(handlers).forEach(([event, handler]) => {
       window.removeListener(event as any, handler);
     });
+    window.removeAllListeners('move');
     screen.removeAllListeners('display-added');
     screen.removeAllListeners('display-removed');
     screen.removeAllListeners('display-metrics-changed');
