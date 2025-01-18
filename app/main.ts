@@ -770,7 +770,18 @@ async function createWindow() {
   );
 
   // Create the browser window.
-  mainWindow = new BrowserWindow(windowOptions);
+mainWindow = new BrowserWindow(windowOptions);
+
+// Store initial window size
+const initialSize = mainWindow.getSize();
+
+// Add event listener to reset window size when shown
+mainWindow.on('show', () => {
+  // Only reset size if we're running on Wayland
+  if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+    mainWindow.setSize(initialSize[0], initialSize[1]);
+  }
+});
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);
   }
