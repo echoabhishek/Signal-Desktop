@@ -144,10 +144,25 @@ export function TextStoryCreator({
   skinTone,
 }: PropsType): JSX.Element {
   const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
+  const [showLinkPreview, setShowLinkPreview] = useState(false);
+  const linkPreviewRef = useRef<HTMLDivElement>(null);
 
   const onTryClose = useCallback(() => {
     setShowConfirmDiscardModal(true);
   }, [setShowConfirmDiscardModal]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (linkPreviewRef.current && !linkPreviewRef.current.contains(event.target as Node)) {
+        setShowLinkPreview(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const [isEditingText, setIsEditingText] = useState(false);
   const [selectedBackground, setSelectedBackground] =
@@ -217,6 +232,7 @@ export function TextStoryCreator({
 
   useEffect(() => {
     if (!linkPreview || !text) {
+      setShowLinkPreview(false);
       return;
     }
 
@@ -228,11 +244,14 @@ export function TextStoryCreator({
         return oldValue;
       }
       if (shouldApplyLinkPreview) {
+        setShowLinkPreview(true);
         return LinkPreviewApplied.Automatic;
+      } else {
+        setShowLinkPreview(false);
+        return LinkPreviewApplied.None;
       }
-      return LinkPreviewApplied.None;
     });
-  }, [linkPreview, text]);
+  }, [linkPreview, text, setShowLinkPreview]);
 
   const [isLinkPreviewInputShowing, setIsLinkPreviewInputShowing] =
     useState(false);
@@ -568,9 +587,9 @@ export function TextStoryCreator({
                     value={linkPreviewInputValue}
                   />
                   <div className="StoryCreator__link-preview-container">
-                    {linkPreview ? (
+                    {linkPreview && showLinkPreview ? (
                       <>
-                        <div className="StoryCreator__link-preview-wrapper">
+                        <div className="StoryCreator__link-preview-wrapper" ref={linkPreviewRef}>
                           <StoryLinkPreview
                             {...linkPreview}
                             forceCompactMode
@@ -582,6 +601,7 @@ export function TextStoryCreator({
                           onClick={() => {
                             setLinkPreviewApplied(LinkPreviewApplied.Manual);
                             setIsLinkPreviewInputShowing(false);
+                            setShowLinkPreview(true);
                           }}
                           theme={Theme.Dark}
                           variant={ButtonVariant.Primary}
