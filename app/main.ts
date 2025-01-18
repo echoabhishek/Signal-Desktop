@@ -66,6 +66,14 @@ import {
   isTestEnvironment,
 } from '../ts/environment';
 
+// Function to detect if we're running on Wayland
+function isRunningOnWayland(): boolean {
+  return process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland';
+}
+
+// Store the initial window size
+let initialWindowSize: { width: number; height: number } | null = null;
+
 // Very important to put before the single instance check, since it is based on the
 //   userData directory. (see requestSingleInstanceLock below)
 import * as userConfig from './user_config';
@@ -720,6 +728,22 @@ async function createWindow() {
     icon: windowIcon,
     ...pick(windowConfig, ['autoHideMenuBar', 'x', 'y']),
   };
+
+  // Store the initial window size
+  initialWindowSize = { width, height };
+
+  // Function to restore window size
+  const restoreWindowSize = () => {
+    if (isRunningOnWayland() && initialWindowSize && mainWindow) {
+      mainWindow.setSize(initialWindowSize.width, initialWindowSize.height, false);
+    }
+  };
+
+  // Create the browser window.
+  mainWindow = new BrowserWindow(windowOptions);
+
+  // Add event listener to restore window size on show
+  mainWindow.on('show', restoreWindowSize);
 
   if (!isNumber(windowOptions.width) || windowOptions.width < MIN_WIDTH) {
     windowOptions.width = DEFAULT_WIDTH;
