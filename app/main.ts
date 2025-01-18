@@ -776,6 +776,38 @@ async function createWindow() {
   }
 
   mainWindowCreated = true;
+
+  // Handle Wayland-specific behavior
+  if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+    let lastSize = mainWindow.getSize();
+
+    mainWindow.on('hide', () => {
+      lastSize = mainWindow.getSize();
+      getLogger().info('Window hidden. Last size:', lastSize);
+    });
+
+    mainWindow.on('show', () => {
+      if (lastSize[0] > 0 && lastSize[1] > 0) {
+        mainWindow.setSize(lastSize[0], lastSize[1]);
+        getLogger().info('Window shown. Size set to:', lastSize);
+      }
+    });
+  }
+
+  // Handle Wayland-specific behavior
+  if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+    let lastSize = mainWindow.getSize();
+
+    mainWindow.on('hide', () => {
+      lastSize = mainWindow.getSize();
+    });
+
+    mainWindow.on('show', () => {
+      if (lastSize[0] > 0 && lastSize[1] > 0) {
+        mainWindow.setSize(lastSize[0], lastSize[1]);
+      }
+    });
+  }
   setupSpellChecker(
     mainWindow,
     getPreferredSystemLocales(),
