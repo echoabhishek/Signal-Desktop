@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import * as log from '../ts/logging/log';
 import type { LocalizerType } from '../ts/types/I18N';
+import { saveWindowState, restoreWindowState } from './windowManager';
 
 export type SystemTrayServiceOptionsType = Readonly<{
   i18n: LocalizerType;
@@ -137,6 +138,17 @@ export class SystemTrayService {
     const tray = this.#tray;
     const browserWindow = this.#browserWindow;
 
+    const toggleWindowVisibility = () => {
+      if (browserWindow?.isVisible()) {
+        saveWindowState(browserWindow);
+        browserWindow.hide();
+      } else if (browserWindow) {
+        restoreWindowState(browserWindow);
+        browserWindow.show();
+        focusAndForceToTop(browserWindow);
+      }
+    };
+
     try {
       tray.setImage(getIcon(this.#unreadCount));
     } catch (err: unknown) {
@@ -153,84 +165,24 @@ export class SystemTrayService {
     tray.setContextMenu(
       Menu.buildFromTemplate([
         {
-          id: 'toggleWindowVisibility',
-          ...(browserWindow?.isVisible()
-            ? {
-                label: this.#i18n('icu:hide'),
-                click: () => {
-                  log.info(
-                    'System tray service: hiding the window from the context menu'
-                  );
-                  // We re-fetch `this.browserWindow` here just in case the browser window
-                  //   has changed while the context menu was open. Same applies in the
-                  //   "show" case below.
-                  this.#browserWindow?.hide();
-                },
-              }
-            : {
-                label: this.#i18n('icu:show'),
-                click: () => {
-                  log.info(
-                    'System tray service: showing the window from the context menu'
-                  );
-                  if (this.#browserWindow) {
-                    this.#browserWindow.show();
-                    focusAndForceToTop(this.#browserWindow);
-                  }
-                },
-              }),
+          label: browserWindow.isVisible()
+            ? this.#i18n('hide')
+            : this.#i18n('show'),
+          click: toggleWindowVisibility,
         },
+        { type: 'separator' },
         {
-          id: 'quit',
-          label: this.#i18n('icu:quit'),
+          label: this.#i18n('quit'),
           click: () => {
-            log.info(
-              'System tray service: quitting the app from the context menu'
-            );
             app.quit();
           },
         },
       ])
     );
-  }
 
-  #renderDisabled() {
-    log.info('System tray service: rendering no tray');
+    tray.on('click', toggleWindowVisibility);
 
-    if (!this.#tray) {
-      return;
-    }
-    this.#tray.destroy();
-    this.#tray = undefined;
-  }
-
-  #createTray(): Tray {
-    log.info('System tray service: creating the tray');
-
-    // This icon may be swiftly overwritten.
-    const result = this.#createTrayInstance(getDefaultIcon());
-
-    // Note: "When app indicator is used on Linux, the click event is ignored." This
-    //   doesn't mean that the click event is always ignored on Linux; it depends on how
-    //   the app indicator is set up.
-    //
-    // See <https://github.com/electron/electron/blob/v13.1.3/docs/api/tray.md#class-tray>.
-    result.on('click', () => {
-      const browserWindow = this.#browserWindow;
-      if (!browserWindow) {
-        return;
-      }
-      if (browserWindow.isVisible()) {
-        browserWindow.hide();
-      } else {
-        browserWindow.show();
-        focusAndForceToTop(browserWindow);
-      }
-    });
-
-    result.setToolTip(this.#i18n('icu:signalDesktop'));
-
-    return result;
+    tray.setToolTip(this.#i18n('icu:signalDesktop'));
   }
 
   /**
@@ -293,34 +245,6 @@ function getTrayIconImagePath(size: number, unreadCount: number): string {
 
   return iconPath;
 }
-
-const TrayIconCache = new Map<string, NativeImage>();
-
-function getIcon(unreadCount: number) {
-  const cacheKey = `${Math.min(unreadCount, 10)}`;
-
-  const cached = TrayIconCache.get(cacheKey);
-  if (cached != null) {
-    return cached;
-  }
-
-  const platform = os.platform();
-
-  let image: NativeImage;
-
-  if (platform === 'linux') {
-    // Linux: Static tray icons
-    // Use a single tray icon for Linux, as it does not support scale factors.
-    // We choose the best icon based on the highest display scale factor.
-    const scaleFactor = getDisplaysMaxScaleFactor();
-    const variant = getVariantForScaleFactor(scaleFactor);
-    const iconPath = getTrayIconImagePath(variant.size, unreadCount);
-    const buffer = readFileSync(iconPath);
-    image = nativeImage.createFromBuffer(buffer, {
-      scaleFactor: 1.0, // Must be 1.0 for Linux
-      width: variant.size,
-      height: variant.size,
-    });
   } else {
     // Windows/macOS: Responsive tray icons
     image = nativeImage.createEmpty();
