@@ -1,0 +1,11 @@
+0 verbose cli /usr/bin/node /usr/bin/npm
+1 info using npm@10.8.2
+2 info using node@v20.18.0
+3 silly config load:file:/usr/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/user/Signal-Desktop/.npmrc
+5 silly config load:file:/home/user/.npmrc
+6 silly config load:file:/usr/etc/npmrc
+7 verbose title npm install
+8 verbose argv "install"
+9 verbose logfile logs-max:10 dir:/home/user/.npm/_logs/2025-01-18T21_28_17_665Z-
+10 verbose logfile /home/user/.npm/_logs/2025-01-18T21_28_17_665Z-debug-0.log
