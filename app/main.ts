@@ -544,94 +544,113 @@ function initializeWindowStateHandlers(window: BrowserWindow): void {
 }
 
 // Self-test function
-function runWindowStateTest(window: BrowserWindow): void {
-  getLogger().info('Starting comprehensive window state test...');
+function runWindowStateTest(window: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    getLogger().info('Starting comprehensive window state test...');
 
-  const testStates = [
-    { action: 'minimize', func: () => window.minimize() },
-    { action: 'restore', func: () => window.restore() },
-    { action: 'maximize', func: () => window.maximize() },
-    { action: 'unmaximize', func: () => window.unmaximize() },
-    { action: 'fullscreen', func: () => window.setFullScreen(true) },
-    { action: 'leave-fullscreen', func: () => window.setFullScreen(false) },
-    { action: 'hide', func: () => window.hide() },
-    { action: 'show', func: () => window.show() },
-    { action: 'move', func: () => window.setPosition(100, 100) },
-    { action: 'resize', func: () => window.setSize(800, 600) },
-    { action: 'rapid-resize', func: () => {
-      for (let i = 0; i < 10; i++) {
-        window.setSize(800 + i * 10, 600 + i * 10);
-      }
-    }},
-    { action: 'move-offscreen', func: () => {
-      const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-      window.setPosition(width + 100, height + 100);
-    }},
-    { action: 'dpi-change-simulation', func: () => {
-      const currentBounds = window.getBounds();
-      window.setBounds({
-        x: currentBounds.x * 2,
-        y: currentBounds.y * 2,
-        width: currentBounds.width * 2,
-        height: currentBounds.height * 2
-      });
-    }},
-    { action: 'rapid-state-change', func: () => {
-      for (let i = 0; i < 20; i++) {
-        window.minimize();
-        window.restore();
-        window.maximize();
-        window.unmaximize();
-      }
-    }},
-    { action: 'multi-monitor-move', func: () => {
-      const displays = screen.getAllDisplays();
-      if (displays.length > 1) {
-        const secondDisplay = displays[1];
-        window.setBounds({
-          x: secondDisplay.bounds.x + 50,
-          y: secondDisplay.bounds.y + 50,
-          width: 800,
-          height: 600
-        });
-      }
-    }},
-    { action: 'edge-case-size', func: () => {
-      window.setSize(1, 1);
-      setTimeout(() => window.setSize(10000, 10000), 500);
-    }},
-  ];
-
-  let testIndex = 0;
-  const runNextTest = () => {
-    if (testIndex < testStates.length) {
-      const test = testStates[testIndex];
-      getLogger().info(`Testing ${test.action}...`);
-      test.func();
-      testIndex++;
-      setTimeout(() => {
-        const bounds = window.getBounds();
-        const display = screen.getDisplayMatching(bounds);
-        const state = {
-          bounds,
-          isMinimized: window.isMinimized(),
-          isMaximized: window.isMaximized(),
-          isFullScreen: window.isFullScreen(),
-          isVisible: window.isVisible(),
-          isOnScreen: isValidWindowBounds(bounds, display)
-        };
-        getLogger().info(`After ${test.action}:`, state);
-        if (!verifyWindowState(window)) {
-          getLogger().error(`Invalid window state after ${test.action}`, state);
+    const testStates = [
+      { action: 'minimize', func: () => window.minimize() },
+      { action: 'restore', func: () => window.restore() },
+      { action: 'maximize', func: () => window.maximize() },
+      { action: 'unmaximize', func: () => window.unmaximize() },
+      { action: 'fullscreen', func: () => window.setFullScreen(true) },
+      { action: 'leave-fullscreen', func: () => window.setFullScreen(false) },
+      { action: 'hide', func: () => window.hide() },
+      { action: 'show', func: () => window.show() },
+      { action: 'move', func: () => window.setPosition(100, 100) },
+      { action: 'resize', func: () => window.setSize(800, 600) },
+      { action: 'rapid-resize', func: () => {
+        for (let i = 0; i < 10; i++) {
+          window.setSize(800 + i * 10, 600 + i * 10);
         }
-        runNextTest();
-      }, 1000);
-    } else {
-      getLogger().info('Comprehensive window state test completed.');
-    }
-  };
+      }},
+      { action: 'move-offscreen', func: () => {
+        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+        window.setPosition(width + 100, height + 100);
+      }},
+      { action: 'dpi-change-simulation', func: () => {
+        const currentBounds = window.getBounds();
+        window.setBounds({
+          x: currentBounds.x * 2,
+          y: currentBounds.y * 2,
+          width: currentBounds.width * 2,
+          height: currentBounds.height * 2
+        });
+      }},
+      { action: 'rapid-state-change', func: () => {
+        for (let i = 0; i < 20; i++) {
+          window.minimize();
+          window.restore();
+          window.maximize();
+          window.unmaximize();
+        }
+      }},
+      { action: 'multi-monitor-move', func: () => {
+        const displays = screen.getAllDisplays();
+        if (displays.length > 1) {
+          const secondDisplay = displays[1];
+          window.setBounds({
+            x: secondDisplay.bounds.x + 50,
+            y: secondDisplay.bounds.y + 50,
+            width: 800,
+            height: 600
+          });
+        }
+      }},
+      { action: 'edge-case-size', func: () => {
+        window.setSize(1, 1);
+        setTimeout(() => window.setSize(10000, 10000), 500);
+      }},
+      { action: 'rapid-focus-blur', func: () => {
+        for (let i = 0; i < 20; i++) {
+          window.focus();
+          window.blur();
+        }
+      }},
+      { action: 'move-to-corner', func: () => {
+        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+        window.setBounds({ x: width - 1, y: height - 1, width: 100, height: 100 });
+      }},
+      { action: 'rapid-show-hide', func: () => {
+        for (let i = 0; i < 20; i++) {
+          window.show();
+          window.hide();
+        }
+      }},
+    ];
 
-  runNextTest();
+    let testIndex = 0;
+    const runNextTest = () => {
+      if (testIndex < testStates.length) {
+        const test = testStates[testIndex];
+        getLogger().info(`Testing ${test.action}...`);
+        test.func();
+        testIndex++;
+        setTimeout(() => {
+          const bounds = window.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          const state = {
+            bounds,
+            isMinimized: window.isMinimized(),
+            isMaximized: window.isMaximized(),
+            isFullScreen: window.isFullScreen(),
+            isVisible: window.isVisible(),
+            isOnScreen: isValidWindowBounds(bounds, display)
+          };
+          getLogger().info(`After ${test.action}:`, state);
+          if (!verifyWindowState(window)) {
+            getLogger().error(`Invalid window state after ${test.action}`, state);
+          }
+          runNextTest();
+        }, 1000);
+      } else {
+        getLogger().info('Comprehensive window state test completed.');
+        resolve();
+      }
+    };
+
+    runNextTest();
+  });
 }
 
 function runRegressionTests(window: BrowserWindow): void {
@@ -750,6 +769,24 @@ DPI Scale Factor: ${display.scaleFactor}
   return report;
 }
 
+import { appendFile } from 'fs/promises';
+import { join } from 'path';
+
+async function logTestResults(report: string): Promise<void> {
+  const logPath = join(app.getPath('userData'), 'window-test-logs.txt');
+  const logEntry = `
+[${new Date().toISOString()}]
+${report}
+`;
+  
+  try {
+    await appendFile(logPath, logEntry);
+    getLogger().info('Test results logged to file:', logPath);
+  } catch (error) {
+    getLogger().error('Error logging test results:', Errors.toLogFormat(error));
+  }
+}
+
 async function runAllTests(window: BrowserWindow): Promise<void> {
   getLogger().info('Starting all window tests...');
   
@@ -758,6 +795,22 @@ async function runAllTests(window: BrowserWindow): Promise<void> {
   
   const finalReport = generateWindowStateReport(window);
   getLogger().info('All window tests completed. Final report:', finalReport);
+  
+  await logTestResults(finalReport);
+}
+
+function schedulePeriodicTests(window: BrowserWindow): void {
+  const runTests = async () => {
+    try {
+      await runAllTests(window);
+    } catch (error) {
+      getLogger().error('Error during periodic tests:', Errors.toLogFormat(error));
+      await logTestResults(`Error during periodic tests: ${Errors.toLogFormat(error)}`);
+    }
+  };
+
+  // Run tests every 6 hours
+  setInterval(runTests, 6 * 60 * 60 * 1000);
 }
 
 // Add this to your main window creation logic
@@ -770,6 +823,7 @@ app.on('ready', async () => {
   // Run all tests after a short delay to ensure everything is initialized
   setTimeout(async () => {
     await runAllTests(mainWindow);
+    schedulePeriodicTests(mainWindow);
   }, 5000);
 
   // ... rest of your existing code ...
