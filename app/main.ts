@@ -105,6 +105,36 @@ let windowStateChangeCount = 0;
 const WINDOW_STATE_CHANGE_THRESHOLD = 10;
 const WINDOW_STATE_CHANGE_INTERVAL = 1000; // 1 second
 
+interface PersistedWindowState {
+  bounds: Electron.Rectangle;
+  isMaximized: boolean;
+  isFullScreen: boolean;
+}
+
+function persistWindowState(window: BrowserWindow): void {
+  const state: PersistedWindowState = {
+    bounds: window.getBounds(),
+    isMaximized: window.isMaximized(),
+    isFullScreen: window.isFullScreen(),
+  };
+  ephemeralConfig.set('windowState', state);
+}
+
+function restorePersistedWindowState(window: BrowserWindow): void {
+  const state = ephemeralConfig.get('windowState') as PersistedWindowState | undefined;
+  if (state) {
+    if (isValidWindowBounds(state.bounds, screen.getPrimaryDisplay())) {
+      window.setBounds(state.bounds);
+    }
+    if (state.isMaximized) {
+      window.maximize();
+    }
+    if (state.isFullScreen) {
+      window.setFullScreen(true);
+    }
+  }
+}
+
 function isValidWindowBounds(bounds: Electron.Rectangle, display: Electron.Display): boolean {
   const { width, height, x, y } = bounds;
   const { workArea } = display;
@@ -180,16 +210,33 @@ function restoreWindowBounds(window: BrowserWindow): void {
 }
 
 function resetWindowState(window: BrowserWindow): void {
-  getLogger().warn('Resetting window state due to rapid changes');
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workArea;
-  setWindowBoundsSafely(window, {
-    x: Math.round(primaryDisplay.workArea.x + (primaryDisplay.workArea.width - width) / 2),
-    y: Math.round(primaryDisplay.workArea.y + (primaryDisplay.workArea.height - height) / 2),
-    width: Math.round(width * 0.8),
-    height: Math.round(height * 0.8),
-  });
-  windowStateChangeCount = 0;
+  getLogger().warn('Resetting window state');
+  try {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workArea;
+    const newBounds = {
+      x: Math.round(primaryDisplay.workArea.x + (primaryDisplay.workArea.width - width * 0.8) / 2),
+      y: Math.round(primaryDisplay.workArea.y + (primaryDisplay.workArea.height - height * 0.8) / 2),
+      width: Math.round(width * 0.8),
+      height: Math.round(height * 0.8),
+    };
+
+    window.setFullScreen(false);
+    window.unmaximize();
+    setWindowBoundsSafely(window, newBounds);
+
+    if (isWindowStuck(window)) {
+      getLogger().warn('Window still stuck after reset, attempting to recreate window');
+      const newWindow = new BrowserWindow(window.getBounds());
+      newWindow.loadURL(window.webContents.getURL());
+      window.close();
+      initializeWindowStateHandlers(newWindow);
+    }
+
+    windowStateChangeCount = 0;
+  } catch (error) {
+    getLogger().error('Error in resetWindowState:', Errors.toLogFormat(error));
+  }
 }
 
 function handleDPIChange(window: BrowserWindow): void {
@@ -247,6 +294,7 @@ function checkWindowState(window: BrowserWindow) {
     const bounds = window.getBounds();
     const display = screen.getDisplayMatching(bounds);
     const isOnScreen = screen.getAllDisplays().some(d => isValidWindowBounds(bounds, d));
+    const isValidState = !isMinimized && (isMaximized || isFullScreen || isValidWindowBounds(bounds, display));
 
     getLogger().info('Window state check', {
       isMinimized,
@@ -256,118 +304,150 @@ function checkWindowState(window: BrowserWindow) {
       displayId: display.id,
       isValidBounds: isValidWindowBounds(bounds, display),
       isOnScreen,
+      isValidState,
     });
 
-    if (!isOnScreen) {
-      getLogger().warn('Window is off-screen, resetting window state');
+    if (!isOnScreen || !isValidState) {
+      getLogger().warn('Window is in an invalid state, resetting window state');
       resetWindowState(window);
     }
   } catch (error) {
     getLogger().error('Error in checkWindowState:', Errors.toLogFormat(error));
+    // If we encounter an error during state check, attempt to reset the window state
+    try {
+      resetWindowState(window);
+    } catch (resetError) {
+      getLogger().error('Error resetting window state:', Errors.toLogFormat(resetError));
+    }
   }
 }
 
-const handleWindowStateChange = debounce((window: BrowserWindow) => {
-  windowStateChangeCount++;
-  
-  const isMinimized = window.isMinimized();
-  const isMaximized = window.isMaximized();
-  const isFullScreen = window.isFullScreen();
+function isWindowStuck(window: BrowserWindow): boolean {
   const bounds = window.getBounds();
-  
-  getLogger().info('Window state changed', {
-    isMinimized,
-    isMaximized,
-    isFullScreen,
-    bounds,
-    changeCount: windowStateChangeCount,
-  });
+  return bounds.width === 0 || bounds.height === 0 || bounds.x === 0 || bounds.y === 0;
+}
 
-  if (!isMinimized && !isMaximized && !isFullScreen) {
-    safelyStoreWindowBounds(window);
-  }
+const handleWindowStateChange = debounce((window: BrowserWindow) => {
+  try {
+    windowStateChangeCount++;
+    
+    const isMinimized = window.isMinimized();
+    const isMaximized = window.isMaximized();
+    const isFullScreen = window.isFullScreen();
+    const bounds = window.getBounds();
+    const isStuck = isWindowStuck(window);
+    
+    getLogger().info('Window state changed', {
+      isMinimized,
+      isMaximized,
+      isFullScreen,
+      bounds,
+      changeCount: windowStateChangeCount,
+      isStuck,
+    });
 
-  if (windowStateChangeCount >= WINDOW_STATE_CHANGE_THRESHOLD) {
-    getLogger().warn('Rapid window state changes detected', { count: windowStateChangeCount });
+    if (isStuck) {
+      getLogger().warn('Window is stuck in an invalid state, resetting');
+      resetWindowState(window);
+    } else if (!isMinimized && !isMaximized && !isFullScreen) {
+      safelyStoreWindowBounds(window);
+    }
+
+    if (windowStateChangeCount >= WINDOW_STATE_CHANGE_THRESHOLD) {
+      getLogger().warn('Rapid window state changes detected', { count: windowStateChangeCount });
+      resetWindowState(window);
+    } else {
+      // Reset the counter after the debounce period only if we haven't hit the threshold
+      setTimeout(() => {
+        windowStateChangeCount = 0;
+      }, WINDOW_STATE_CHANGE_INTERVAL);
+    }
+  } catch (error) {
+    getLogger().error('Error in handleWindowStateChange:', Errors.toLogFormat(error));
     resetWindowState(window);
-  } else {
-    // Reset the counter after the debounce period only if we haven't hit the threshold
-    setTimeout(() => {
-      windowStateChangeCount = 0;
-    }, WINDOW_STATE_CHANGE_INTERVAL);
   }
-
 }, 250, { maxWait: 1000 });  // Debounce for 250ms, but invoke after 1 second max
 
 function initializeWindowStateHandlers(window: BrowserWindow): void {
-  const handlers = {
-    show: () => {
-      restoreWindowBounds(window);
-      handleWindowStateChange(window);
-    },
-    hide: () => handleWindowStateChange(window),
-    maximize: () => handleWindowStateChange(window),
-    unmaximize: () => {
-      restoreWindowBounds(window);
-      handleWindowStateChange(window);
-    },
-    minimize: () => handleWindowStateChange(window),
-    restore: () => {
-      restoreWindowBounds(window);
-      handleWindowStateChange(window);
-    },
-    'enter-full-screen': () => handleWindowStateChange(window),
-    'leave-full-screen': () => {
-      restoreWindowBounds(window);
-      handleWindowStateChange(window);
-    },
-    moved: () => handleWindowStateChange(window),
-    resize: () => {
-      handleWindowStateChange(window);
-      if (process.platform === 'linux') {
-        handleWaylandResize(window);
-      }
-    },
-  };
+  try {
+    restorePersistedWindowState(window);
 
-  Object.entries(handlers).forEach(([event, handler]) => {
-    window.on(event as any, handler);
-  });
+    const handlers = {
+      show: () => {
+        restoreWindowBounds(window);
+        handleWindowStateChange(window);
+      },
+      hide: () => handleWindowStateChange(window),
+      maximize: () => handleWindowStateChange(window),
+      unmaximize: () => {
+        restoreWindowBounds(window);
+        handleWindowStateChange(window);
+      },
+      minimize: () => handleWindowStateChange(window),
+      restore: () => {
+        restoreWindowBounds(window);
+        handleWindowStateChange(window);
+      },
+      'enter-full-screen': () => handleWindowStateChange(window),
+      'leave-full-screen': () => {
+        restoreWindowBounds(window);
+        handleWindowStateChange(window);
+      },
+      moved: () => handleWindowStateChange(window),
+      resize: () => {
+        handleWindowStateChange(window);
+        if (process.platform === 'linux') {
+          handleWaylandResize(window);
+        }
+      },
+      close: () => persistWindowState(window),
+    };
 
-  // Handle display changes
-  screen.on('display-added', () => handleWindowStateChange(window));
-  screen.on('display-removed', () => handleWindowStateChange(window));
-  screen.on('display-metrics-changed', () => {
-    handleWindowStateChange(window);
-    handleDPIChange(window);
-  });
+    Object.entries(handlers).forEach(([event, handler]) => {
+      window.on(event as any, handler);
+    });
 
-  // Handle window moving to a different display
-  let lastDisplayId = screen.getDisplayMatching(window.getBounds()).id;
-  window.on('move', () => {
-    const currentDisplayId = screen.getDisplayMatching(window.getBounds()).id;
-    if (currentDisplayId !== lastDisplayId) {
-      getLogger().info('Window moved to a different display', { from: lastDisplayId, to: currentDisplayId });
-      lastDisplayId = currentDisplayId;
+    // Handle display changes
+    screen.on('display-added', () => handleWindowStateChange(window));
+    screen.on('display-removed', () => handleWindowStateChange(window));
+    screen.on('display-metrics-changed', () => {
       handleWindowStateChange(window);
       handleDPIChange(window);
-    }
-  });
-
-  // Periodically check window state
-  const stateCheckInterval = setInterval(() => checkWindowState(window), 5000);
-
-  // Cleanup function
-  return () => {
-    Object.entries(handlers).forEach(([event, handler]) => {
-      window.removeListener(event as any, handler);
     });
-    window.removeAllListeners('move');
-    screen.removeAllListeners('display-added');
-    screen.removeAllListeners('display-removed');
-    screen.removeAllListeners('display-metrics-changed');
-    clearInterval(stateCheckInterval);
-  };
+
+    // Handle window moving to a different display
+    let lastDisplayId = screen.getDisplayMatching(window.getBounds()).id;
+    window.on('move', () => {
+      const currentDisplayId = screen.getDisplayMatching(window.getBounds()).id;
+      if (currentDisplayId !== lastDisplayId) {
+        getLogger().info('Window moved to a different display', { from: lastDisplayId, to: currentDisplayId });
+        lastDisplayId = currentDisplayId;
+        handleWindowStateChange(window);
+        handleDPIChange(window);
+      }
+    });
+
+    // Periodically check window state
+    const stateCheckInterval = setInterval(() => {
+      checkWindowState(window);
+      persistWindowState(window);
+    }, 5000);
+
+    // Cleanup function
+    return () => {
+      Object.entries(handlers).forEach(([event, handler]) => {
+        window.removeListener(event as any, handler);
+      });
+      window.removeAllListeners('move');
+      screen.removeAllListeners('display-added');
+      screen.removeAllListeners('display-removed');
+      screen.removeAllListeners('display-metrics-changed');
+      clearInterval(stateCheckInterval);
+    };
+  } catch (error) {
+    getLogger().error('Error in initializeWindowStateHandlers:', Errors.toLogFormat(error));
+    throw error;
+  }
 }
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
