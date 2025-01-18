@@ -150,44 +150,27 @@ export class SystemTrayService {
     // context menu, since the 'click' event may not work on all platforms.
     // For details please refer to:
     // https://github.com/electron/electron/blob/master/docs/api/tray.md.
+    const isWayland = process.env.XDG_SESSION_TYPE === 'wayland';
     tray.setContextMenu(
       Menu.buildFromTemplate([
         {
           id: 'toggleWindowVisibility',
-          ...(browserWindow?.isVisible()
-            ? {
-                label: this.#i18n('icu:hide'),
-                click: () => {
-                  log.info(
-                    'System tray service: hiding the window from the context menu'
-                  );
-                  // We re-fetch `this.browserWindow` here just in case the browser window
-                  //   has changed while the context menu was open. Same applies in the
-                  //   "show" case below.
-                  this.#browserWindow?.hide();
-                },
-              }
-            : {
-                label: this.#i18n('icu:show'),
-                click: () => {
-                  log.info(
-                    'System tray service: showing the window from the context menu'
-                  );
-                  if (this.#browserWindow) {
-                    this.#browserWindow.show();
-                    focusAndForceToTop(this.#browserWindow);
-                  }
-                },
-              }),
-        },
-        {
-          id: 'quit',
-          label: this.#i18n('icu:quit'),
+          label: browserWindow?.isVisible() ? this.#i18n('icu:hide') : this.#i18n('icu:show'),
           click: () => {
-            log.info(
-              'System tray service: quitting the app from the context menu'
-            );
-            app.quit();
+            if (browserWindow?.isVisible()) {
+              log.info('System tray service: hiding the window from the context menu');
+              browserWindow.hide();
+            } else {
+              log.info('System tray service: showing the window from the context menu');
+              const bounds = browserWindow?.getBounds();
+              log.info('Showing window. Saved bounds:', bounds);
+              browserWindow?.show();
+              if (isWayland && bounds) {
+                // On Wayland, explicitly set the bounds to prevent growth
+                browserWindow.setBounds(bounds);
+              }
+              log.info('Window shown. New bounds:', browserWindow?.getBounds());
+            }
           },
         },
       ])
