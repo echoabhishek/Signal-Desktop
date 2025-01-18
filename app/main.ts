@@ -253,7 +253,11 @@ if (mainWindow.isVisible()) {
 } else {
   if (storedWindowBounds) {
     getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
-    mainWindow.setBounds(storedWindowBounds);
+    try {
+      mainWindow.setBounds(storedWindowBounds);
+    } catch (error) {
+      getLogger().error('Error restoring window bounds:', Errors.toLogFormat(error));
+    }
     storedWindowBounds = null;
   } else {
     getLogger().info('No stored window bounds to restore');
@@ -1031,7 +1035,11 @@ if (shouldShowWindow) {
   getLogger().info('showing main window');
   if (storedWindowBounds) {
     getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
-    mainWindow.setBounds(storedWindowBounds);
+    try {
+      mainWindow.setBounds(storedWindowBounds);
+    } catch (error) {
+      getLogger().error('Error restoring window bounds:', Errors.toLogFormat(error));
+    }
     storedWindowBounds = null;
   } else {
     getLogger().info('No stored window bounds to restore');
@@ -2550,12 +2558,16 @@ app.on('activate', () => {
     return;
   }
 
-  // On OS X it's common to re-create a window in the app when the
+// On OS X it's common to re-create a window in the app when the
 // dock icon is clicked and there are no other windows open.
 if (mainWindow) {
   if (storedWindowBounds) {
     getLogger().info('Restoring window bounds before showing:', storedWindowBounds);
-    mainWindow.setBounds(storedWindowBounds);
+    try {
+      mainWindow.setBounds(storedWindowBounds);
+    } catch (error) {
+      getLogger().error('Error restoring window bounds:', Errors.toLogFormat(error));
+    }
     storedWindowBounds = null;
   } else {
     getLogger().info('No stored window bounds to restore');
