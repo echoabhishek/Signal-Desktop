@@ -161,9 +161,20 @@ function getMainWindow() {
 
 function restoreWindowSize(window: BrowserWindow) {
   if (global.initialWindowSize) {
-    const { width, height } = global.initialWindowSize;
-    window.setSize(width, height);
+    const { width, height, wasMaximized } = global.initialWindowSize;
+    if (wasMaximized) {
+      window.maximize();
+    } else {
+      const [currentX, currentY] = window.getPosition();
+      window.setBounds({ x: currentX, y: currentY, width, height });
+    }
   }
+}
+
+function saveInitialWindowSize(window: BrowserWindow) {
+  const [width, height] = window.getSize();
+  const wasMaximized = window.isMaximized();
+  global.initialWindowSize = { width, height, wasMaximized };
 }
 
 const development =
@@ -728,8 +739,11 @@ async function createWindow() {
     ...pick(windowConfig, ['autoHideMenuBar', 'x', 'y']),
   };
 
-  // Store the initial window size
-  global.initialWindowSize = { width, height };
+  // Create the browser window.
+  mainWindow = new BrowserWindow(windowOptions);
+
+  // Save the initial window size
+  saveInitialWindowSize(mainWindow);
 
   if (!isNumber(windowOptions.width) || windowOptions.width < MIN_WIDTH) {
     windowOptions.width = DEFAULT_WIDTH;
