@@ -330,6 +330,7 @@ export type DraftEditMessageType = {
 };
 
 export type ConversationAttributesType = {
+  isDeleted?: boolean;
   accessKey?: string | null;
   addedBy?: string;
   badges?: Array<

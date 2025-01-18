@@ -716,18 +716,19 @@ export function ConversationDetails({
       )}
 
       {!conversation.isMe && (
-        <ConversationDetailsActions
-          acceptConversation={acceptConversation}
-          blockConversation={blockConversation}
-          cannotLeaveBecauseYouAreLastAdmin={cannotLeaveBecauseYouAreLastAdmin}
-          conversationId={conversation.id}
-          conversationTitle={conversation.title}
-          i18n={i18n}
-          isBlocked={Boolean(conversation.isBlocked)}
-          isGroup={isGroup}
-          left={Boolean(conversation.left)}
-          onLeave={() => leaveGroup(conversation.id)}
-        />
+<ConversationDetailsActions
+  acceptConversation={acceptConversation}
+  blockConversation={blockConversation}
+  cannotLeaveBecauseYouAreLastAdmin={cannotLeaveBecauseYouAreLastAdmin}
+  conversationId={conversation.id}
+  conversationTitle={conversation.title}
+  deleteConversation={deleteConversation}
+  i18n={i18n}
+  isBlocked={conversation.isBlocked}
+  isGroup={conversation.type === 'group'}
+  left={Boolean(conversation.left)}
+  onLeave={() => setConfirmLeaveGroup(true)}
+/>
       )}
 
       {modalNode}

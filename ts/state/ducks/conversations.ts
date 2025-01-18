@@ -98,6 +98,36 @@ import {
   getMessagesByConversation,
 } from '../selectors/conversations';
 import { getIntl } from '../selectors/user';
+
+export const deleteConversation = (
+  conversationId: string
+): ThunkAction<void, RootStateType, unknown, any> => {
+  return async (dispatch, getState) => {
+    const conversation = getConversationSelector(getState())(conversationId);
+    if (!conversation) {
+      return;
+    }
+
+    // Mark the conversation as deleted in the database
+    await DataWriter.updateConversation({
+      ...conversation,
+      isDeleted: true,
+    });
+
+    // Remove the conversation from the Redux store
+    dispatch({
+      type: 'REMOVE_CONVERSATION',
+      payload: { conversationId },
+    });
+
+    // Sync deletion with the server
+    try {
+      await window.textsecure.messaging.syncDeleteConversation(conversationId);
+    } catch (error) {
+      log.error('Failed to sync conversation deletion with server:', error);
+    }
+  };
+};
 import type {
   AvatarDataType,
   AvatarUpdateOptionsType,

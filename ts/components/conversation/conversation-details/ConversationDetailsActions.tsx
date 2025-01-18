@@ -19,6 +19,7 @@ export type Props = {
   cannotLeaveBecauseYouAreLastAdmin: boolean;
   conversationId: string;
   conversationTitle: string;
+  deleteConversation: (id: string) => void;
   i18n: LocalizerType;
   isBlocked: boolean;
   isGroup: boolean;
@@ -32,6 +33,7 @@ export function ConversationDetailsActions({
   cannotLeaveBecauseYouAreLastAdmin,
   conversationId,
   conversationTitle,
+  deleteConversation,
   i18n,
   isBlocked,
   isGroup,
@@ -43,6 +45,7 @@ export function ConversationDetailsActions({
   const [confirmGroupUnblock, gGroupUnblock] = useState<boolean>(false);
   const [confirmDirectBlock, gDirectBlock] = useState<boolean>(false);
   const [confirmDirectUnblock, gDirectUnblock] = useState<boolean>(false);
+  const [confirmDelete, gDelete] = useState<boolean>(false);
 
   let leaveGroupNode: ReactNode;
   if (isGroup && !left) {
@@ -161,9 +164,27 @@ export function ConversationDetailsActions({
     );
   }
 
+  const deleteNode = (
+    <PanelRow
+      onClick={() => gDelete(true)}
+      icon={
+        <ConversationDetailsIcon
+          ariaLabel={i18n('icu:ConversationDetailsActions--delete-conversation')}
+          icon={IconType.trash}
+        />
+      }
+      label={
+        <div className="ConversationDetails__delete-conversation">
+          {i18n('icu:ConversationDetailsActions--delete-conversation')}
+        </div>
+      }
+    />
+  );
+
   return (
     <>
       <PanelSection>
+        {deleteNode}
         {leaveGroupNode}
         {blockNode}
       </PanelSection>
@@ -274,6 +295,23 @@ export function ConversationDetailsActions({
           })}
         >
           {i18n('icu:MessageRequests--unblock-direct-confirm-body')}
+        </ConfirmationDialog>
+      )}
+      {confirmDelete && (
+        <ConfirmationDialog
+          dialogName="ConversationDetailsAction.confirmDelete"
+          actions={[
+            {
+              text: i18n('icu:ConversationDetailsActions--delete-conversation-modal-confirm'),
+              action: () => deleteConversation(conversationId),
+              style: 'affirmative',
+            },
+          ]}
+          i18n={i18n}
+          onClose={() => gDelete(false)}
+          title={i18n('icu:ConversationDetailsActions--delete-conversation-modal-title')}
+        >
+          {i18n('icu:ConversationDetailsActions--delete-conversation-modal-content')}
         </ConfirmationDialog>
       )}
     </>
