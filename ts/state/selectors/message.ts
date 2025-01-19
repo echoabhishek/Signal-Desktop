@@ -698,29 +698,6 @@ export const getPropsForMessage = (
   const isGroup = conversation.type === 'group';
   const { sticker } = message;
 
-  const isMediaUnavailable = (attachment: AttachmentType) => {
-    return attachment.contentType && !attachment.data && !attachment.path;
-  };
-
-  const showMediaUnavailableIcon = attachments.some(isMediaUnavailable) || 
-    (sticker && !sticker.data && !sticker.path);
-
-  const isMessageTapToView = isTapToView(message);
-  const activeCallConversationId = activeCall?.conversationId;
-
-  const isTargeted = message.id === targetedMessageId;
-  const isSelected = selectedMessageIds?.includes(message.id) ?? false;
-  const isSelectMode = selectedMessageIds != null;
-
-  const selectedReaction = (
-    (message.reactions || []).find(re => re.fromId === ourConversationId) || {}
-  ).emoji;
-
-  const authorId = getAuthorId(message, {
-    conversationSelector,
-    ourConversationId,
-    ourNumber,
-    ourAci,
   });
   const contactNameColor = getContactNameColor(contactNameColors, authorId);
 
@@ -2291,3 +2268,24 @@ export const getMessageDetails = createSelector(
     };
   }
 );
+  const isMediaUnavailable = (item: AttachmentType | { data?: Uint8Array; path?: string }) => {
+    return item.contentType && !item.data && !item.path;
+  };
+
+  const showMediaUnavailableIcon = (
+    (attachments && attachments.some(isMediaUnavailable)) ||
+    (sticker && isMediaUnavailable(sticker))
+  ) ?? false;
+
+  const isSelectMode = selectedMessageIds != null;
+
+  const selectedReaction = (
+    (message.reactions || []).find(re => re.fromId === ourConversationId) || {}
+  ).emoji;
+
+  const authorId = getAuthorId(message, {
+    conversationSelector,
+    ourConversationId,
+    ourNumber,
+    ourAci,
+  });
