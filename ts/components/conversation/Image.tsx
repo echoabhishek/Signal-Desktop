@@ -17,9 +17,14 @@ import {
   isDownloadable,
   isIncremental,
   isReadyToView,
+  isSticker,
 } from '../../types/Attachment';
 import { ProgressCircle } from '../ProgressCircle';
 import { useUndownloadableMediaHandler } from '../../hooks/useUndownloadableMediaHandler';
+
+const isLocalAttachment = (attachment: AttachmentForUIType) => {
+  return attachment.path !== undefined;
+};
 
 export enum CurveType {
   None = 0,
@@ -97,6 +102,33 @@ export function Image({
   cropHeight = 0,
 }: Props): JSX.Element {
   const resolvedBlurHash = blurHash || defaultBlurHash(theme);
+  const isAttachmentSticker = isSticker(attachment);
+  const isAttachmentLocal = isLocalAttachment(attachment);
+
+  const onMediaClick = useUndownloadableMediaHandler(
+    !isAttachmentSticker && !isAttachmentLocal ? showMediaNoLongerAvailableToast : undefined
+  );
+
+  const canDownload = isDownloadable(attachment) && !isIncremental(attachment) && !url;
+  const isDownloaded = isReadyToView(attachment) || url;
+  const showMediaNoLongerAvailable = !isDownloaded && !canDownload && !isAttachmentSticker && !isAttachmentLocal;
+
+  // Add this new section to handle the "media no longer available" message
+  if (showMediaNoLongerAvailable) {
+    return (
+      <div className={classNames('module-image__container', className)} style={curveStyles}>
+        <div
+          className="module-image__download-pending"
+          onClick={onMediaClick}
+          onKeyDown={onMediaClick}
+          role="button"
+          tabIndex={0}
+        >
+          {i18n('icu:imageNoLongerAvailable')}
+        </div>
+      </div>
+    );
+  }
 
   const curveStyles: CSSProperties = {
     borderStartStartRadius: curveTopLeft || CurveType.None,
