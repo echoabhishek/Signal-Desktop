@@ -698,6 +698,13 @@ export const getPropsForMessage = (
   const isGroup = conversation.type === 'group';
   const { sticker } = message;
 
+  const isMediaUnavailable = (attachment: AttachmentType) => {
+    return attachment.contentType && !attachment.data && !attachment.path;
+  };
+
+  const showMediaUnavailableIcon = attachments.some(isMediaUnavailable) || 
+    (sticker && !sticker.data && !sticker.path);
+
   const isMessageTapToView = isTapToView(message);
   const activeCallConversationId = activeCall?.conversationId;
 
@@ -759,6 +766,7 @@ export const getPropsForMessage = (
     }),
     giftBadge: message.giftBadge,
     id: message.id,
+    showMediaUnavailableIcon,
     isBlocked: conversation.isBlocked || false,
     isEditedMessage: Boolean(message.editHistory),
     isMessageRequestAccepted: conversation?.acceptedMessageRequest ?? true,
