@@ -696,32 +696,37 @@ interface WindowState {
   position: { x: number; y: number };
   isMaximized: boolean;
   isFullScreen: boolean;
+  scaleFactor: number;
 }
 
 let lastKnownWindowState: WindowState | null = null;
 
 function getWindowState(window: BrowserWindow): WindowState {
-  const size = window.getSize();
-  const position = window.getPosition();
+  const bounds = window.getBounds();
+  const scaleFactor = window.webContents.getOwnerBrowserWindow().webContents.zoomFactor;
   return {
-    size: { width: size[0], height: size[1] },
-    position: { x: position[0], y: position[1] },
+    size: { width: Math.round(bounds.width / scaleFactor), height: Math.round(bounds.height / scaleFactor) },
+    position: { x: Math.round(bounds.x / scaleFactor), y: Math.round(bounds.y / scaleFactor) },
     isMaximized: window.isMaximized(),
     isFullScreen: window.isFullScreen(),
+    scaleFactor,
   };
 }
 
 function restoreWindowState(window: BrowserWindow, state: WindowState) {
-  if (state.isFullScreen) {
+  const currentState = getWindowState(window);
+  const scaleFactor = currentState.scaleFactor;
+
+  if (state.isFullScreen && !currentState.isFullScreen) {
     window.setFullScreen(true);
-  } else if (state.isMaximized) {
+  } else if (state.isMaximized && !currentState.isMaximized) {
     window.maximize();
-  } else {
+  } else if (!state.isFullScreen && !state.isMaximized) {
     const newBounds = {
-      width: state.size.width,
-      height: state.size.height,
-      x: state.position.x,
-      y: state.position.y,
+      width: Math.round(state.size.width * scaleFactor),
+      height: Math.round(state.size.height * scaleFactor),
+      x: Math.round(state.position.x * scaleFactor),
+      y: Math.round(state.position.y * scaleFactor),
     };
     
     // Ensure the window is always visible on one of the available screens
@@ -736,6 +741,12 @@ function restoreWindowState(window: BrowserWindow, state: WindowState) {
       newBounds.y = primaryDisplay.workArea.y;
     }
 
+    if (currentState.isFullScreen) {
+      window.setFullScreen(false);
+    }
+    if (currentState.isMaximized) {
+      window.unmaximize();
+    }
     window.setBounds(newBounds);
   }
 }
@@ -750,10 +761,17 @@ function isVisible(windowBounds: Electron.Rectangle, screenBounds: Electron.Rect
 }
 
 function setupWindowSizeTracking(window: BrowserWindow) {
+  let isResizing = false;
+  let hideShowCounter = 0;
+  const MAX_HIDE_SHOW_CYCLES = 10;
+  const HIDE_SHOW_RESET_DELAY = 5000; // 5 seconds
+
   const updateWindowState = () => {
     try {
-      lastKnownWindowState = getWindowState(window);
-      logWindowState(window, 'update');
+      if (!isResizing) {
+        lastKnownWindowState = getWindowState(window);
+        logWindowState(window, 'update');
+      }
     } catch (error) {
       console.error('Error updating window state:', error);
     }
@@ -761,8 +779,19 @@ function setupWindowSizeTracking(window: BrowserWindow) {
 
   const debouncedUpdateWindowState = debounce(updateWindowState, WINDOW_RESIZE_DEBOUNCE_DELAY);
 
+  const resetHideShowCounter = debounce(() => {
+    hideShowCounter = 0;
+  }, HIDE_SHOW_RESET_DELAY);
+
   const eventHandlers = {
-    'resize': debouncedUpdateWindowState,
+    'resize': () => {
+      isResizing = true;
+      debouncedUpdateWindowState();
+    },
+    'resize-end': () => {
+      isResizing = false;
+      updateWindowState();
+    },
     'move': debouncedUpdateWindowState,
     'maximize': updateWindowState,
     'unmaximize': updateWindowState,
@@ -770,6 +799,14 @@ function setupWindowSizeTracking(window: BrowserWindow) {
     'leave-full-screen': updateWindowState,
     'show': () => {
       try {
+        hideShowCounter++;
+        resetHideShowCounter();
+        
+        if (hideShowCounter > MAX_HIDE_SHOW_CYCLES) {
+          console.warn('Excessive hide/show cycles detected. Skipping state restoration.');
+          return;
+        }
+
         logWindowState(window, 'show-before');
         if (lastKnownWindowState) {
           restoreWindowState(window, lastKnownWindowState);
@@ -793,10 +830,18 @@ function setupWindowSizeTracking(window: BrowserWindow) {
     window.on(event as any, handler);
   });
 
+  // Handle monitor changes
+  screen.on('display-added', updateWindowState);
+  screen.on('display-removed', updateWindowState);
+  screen.on('display-metrics-changed', updateWindowState);
+
   return () => {
     Object.entries(eventHandlers).forEach(([event, handler]) => {
       window.removeListener(event as any, handler);
     });
+    screen.removeListener('display-added', updateWindowState);
+    screen.removeListener('display-removed', updateWindowState);
+    screen.removeListener('display-metrics-changed', updateWindowState);
   };
 }
 
