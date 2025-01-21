@@ -11,12 +11,14 @@ export type Props = {
   attachment: AttachmentType;
   onClose: (attachment: AttachmentType) => void;
   i18n: LocalizerType;
+  isStaged: boolean;
 };
 
 export function StagedGenericAttachment({
   attachment,
   i18n,
   onClose,
+  isStaged,
 }: Props): JSX.Element {
   const { fileName, contentType } = attachment;
   const extension = getExtensionForDisplay({ contentType, fileName });
@@ -43,6 +45,11 @@ export function StagedGenericAttachment({
       <div className="module-staged-generic-attachment__filename">
         {fileName}
       </div>
+      {!isStaged && (
+        <div className="module-staged-generic-attachment__media-available">
+          {i18n('icu:mediaAvailable')}
+        </div>
+      )}
     </div>
   );
 }

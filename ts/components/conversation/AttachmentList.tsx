@@ -140,6 +140,7 @@ export function AttachmentList<T extends AttachmentType | AttachmentDraftType>({
               attachment={attachment}
               i18n={i18n}
               onClose={closeAttachment}
+              isStaged={true}
             />
           );
         })}

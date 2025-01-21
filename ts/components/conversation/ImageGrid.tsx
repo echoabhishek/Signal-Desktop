@@ -31,6 +31,7 @@ export type Props = {
   bottomOverlay?: boolean;
   direction: DirectionType;
   isSticker?: boolean;
+  isSending?: boolean;
   shouldCollapseAbove?: boolean;
   shouldCollapseBelow?: boolean;
   stickerSize?: number;
@@ -112,6 +113,7 @@ export function ImageGrid({
   direction,
   i18n,
   isSticker,
+  isSending,
   stickerSize,
   onError,
   showMediaNoLongerAvailableToast,
@@ -210,6 +212,8 @@ export function ImageGrid({
           playIconOverlay={isVideoAttachment(attachments[0])}
           height={height}
           width={width}
+          isSticker={isSticker}
+          isSending={isSending}
           url={
             getUrl(attachments[0]) ?? attachments[0].thumbnailFromBackup?.url
           }
@@ -241,8 +245,11 @@ export function ImageGrid({
           playIconOverlay={isVideoAttachment(attachments[0])}
           height={150}
           width={150}
+          isSticker={isSticker}
+          isSending={isSending}
           cropWidth={GAP}
           url={getThumbnailUrl(attachments[0])}
+          tabIndex={tabIndex}
           showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
           showVisualAttachment={showVisualAttachment}
           cancelDownload={cancelDownload}
@@ -253,6 +260,7 @@ export function ImageGrid({
           alt={getAlt(attachments[1], i18n)}
           i18n={i18n}
           theme={theme}
+          attachment={attachments[1]}
           blurHash={attachments[1].blurHash}
           bottomOverlay={withBottomOverlay}
           noBorder={false}
@@ -261,7 +269,8 @@ export function ImageGrid({
           playIconOverlay={isVideoAttachment(attachments[1])}
           height={150}
           width={150}
-          attachment={attachments[1]}
+          isSticker={isSticker}
+          isSending={isSending}
           url={getThumbnailUrl(attachments[1])}
           showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
           showVisualAttachment={showVisualAttachment}
@@ -298,6 +307,8 @@ export function ImageGrid({
           cancelDownload={cancelDownload}
           startDownload={downloadPill ? undefined : startDownload}
           onError={onError}
+          isSticker={isSticker}
+          isSending={isSending}
         />
         <div className="module-image-grid__column">
           <Image
@@ -317,6 +328,8 @@ export function ImageGrid({
             cancelDownload={cancelDownload}
             startDownload={downloadPill ? undefined : startDownload}
             onError={onError}
+            isSticker={isSticker}
+            isSending={isSending}
           />
           <Image
             alt={getAlt(attachments[2], i18n)}
@@ -336,6 +349,8 @@ export function ImageGrid({
             cancelDownload={cancelDownload}
             startDownload={downloadPill ? undefined : startDownload}
             onError={onError}
+            isSticker={isSticker}
+            isSending={isSending}
           />
         </div>
         {detailPill}
@@ -368,6 +383,8 @@ export function ImageGrid({
               cancelDownload={cancelDownload}
               startDownload={downloadPill ? undefined : startDownload}
               onError={onError}
+              isSticker={isSticker}
+              isSending={isSending}
             />
             <Image
               alt={getAlt(attachments[1], i18n)}
@@ -375,18 +392,20 @@ export function ImageGrid({
               theme={theme}
               blurHash={attachments[1].blurHash}
               curveTopRight={curveTopRight}
-              playIconOverlay={isVideoAttachment(attachments[1])}
               noBorder={false}
+              attachment={attachments[1]}
+              playIconOverlay={isVideoAttachment(attachments[1])}
               height={150}
               width={150}
               cropHeight={GAP}
-              attachment={attachments[1]}
               url={getThumbnailUrl(attachments[1])}
               showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
               showVisualAttachment={showVisualAttachment}
               cancelDownload={cancelDownload}
               startDownload={downloadPill ? undefined : startDownload}
               onError={onError}
+              isSticker={isSticker}
+              isSending={isSending}
             />
           </div>
           <div className="module-image-grid__row">
@@ -395,39 +414,41 @@ export function ImageGrid({
               i18n={i18n}
               theme={theme}
               blurHash={attachments[2].blurHash}
-              bottomOverlay={withBottomOverlay}
-              noBorder={false}
               curveBottomLeft={curveBottomLeft}
+              noBorder={false}
+              attachment={attachments[2]}
               playIconOverlay={isVideoAttachment(attachments[2])}
               height={150}
               width={150}
               cropWidth={GAP}
-              attachment={attachments[2]}
               url={getThumbnailUrl(attachments[2])}
               showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
               showVisualAttachment={showVisualAttachment}
               cancelDownload={cancelDownload}
               startDownload={downloadPill ? undefined : startDownload}
               onError={onError}
+              isSticker={isSticker}
+              isSending={isSending}
             />
             <Image
               alt={getAlt(attachments[3], i18n)}
               i18n={i18n}
               theme={theme}
               blurHash={attachments[3].blurHash}
-              bottomOverlay={withBottomOverlay}
-              noBorder={false}
               curveBottomRight={curveBottomRight}
+              noBorder={false}
+              attachment={attachments[3]}
               playIconOverlay={isVideoAttachment(attachments[3])}
               height={150}
               width={150}
-              attachment={attachments[3]}
               url={getThumbnailUrl(attachments[3])}
               showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
               showVisualAttachment={showVisualAttachment}
               cancelDownload={cancelDownload}
               startDownload={downloadPill ? undefined : startDownload}
               onError={onError}
+              isSticker={isSticker}
+              isSending={isSending}
             />
           </div>
         </div>
@@ -436,120 +457,6 @@ export function ImageGrid({
       </div>
     );
   }
-
-  const moreMessagesOverlay = attachments.length > 5;
-  const moreMessagesOverlayText = moreMessagesOverlay
-    ? `+${attachments.length - 5}`
-    : undefined;
-
-  return (
-    <div className="module-image-grid">
-      <div className="module-image-grid__column">
-        <div className="module-image-grid__row">
-          <Image
-            alt={getAlt(attachments[0], i18n)}
-            i18n={i18n}
-            theme={theme}
-            blurHash={attachments[0].blurHash}
-            curveTopLeft={curveTopLeft}
-            attachment={attachments[0]}
-            playIconOverlay={isVideoAttachment(attachments[0])}
-            height={150}
-            width={150}
-            cropWidth={GAP}
-            url={getThumbnailUrl(attachments[0])}
-            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
-            showVisualAttachment={showVisualAttachment}
-            cancelDownload={cancelDownload}
-            startDownload={downloadPill ? undefined : startDownload}
-            onError={onError}
-          />
-          <Image
-            alt={getAlt(attachments[1], i18n)}
-            i18n={i18n}
-            theme={theme}
-            blurHash={attachments[1].blurHash}
-            curveTopRight={curveTopRight}
-            playIconOverlay={isVideoAttachment(attachments[1])}
-            height={150}
-            width={150}
-            attachment={attachments[1]}
-            url={getThumbnailUrl(attachments[1])}
-            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
-            showVisualAttachment={showVisualAttachment}
-            cancelDownload={cancelDownload}
-            startDownload={downloadPill ? undefined : startDownload}
-            onError={onError}
-          />
-        </div>
-        <div className="module-image-grid__row">
-          <Image
-            alt={getAlt(attachments[2], i18n)}
-            i18n={i18n}
-            theme={theme}
-            blurHash={attachments[2].blurHash}
-            bottomOverlay={withBottomOverlay}
-            noBorder={isSticker}
-            curveBottomLeft={curveBottomLeft}
-            playIconOverlay={isVideoAttachment(attachments[2])}
-            height={100}
-            width={100}
-            cropWidth={GAP}
-            attachment={attachments[2]}
-            url={getThumbnailUrl(attachments[2])}
-            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
-            showVisualAttachment={showVisualAttachment}
-            cancelDownload={cancelDownload}
-            startDownload={downloadPill ? undefined : startDownload}
-            onError={onError}
-          />
-          <Image
-            alt={getAlt(attachments[3], i18n)}
-            i18n={i18n}
-            theme={theme}
-            blurHash={attachments[3].blurHash}
-            bottomOverlay={withBottomOverlay}
-            noBorder={isSticker}
-            playIconOverlay={isVideoAttachment(attachments[3])}
-            height={100}
-            width={100}
-            cropWidth={GAP}
-            attachment={attachments[3]}
-            url={getThumbnailUrl(attachments[3])}
-            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
-            showVisualAttachment={showVisualAttachment}
-            cancelDownload={cancelDownload}
-            startDownload={downloadPill ? undefined : startDownload}
-            onError={onError}
-          />
-          <Image
-            alt={getAlt(attachments[4], i18n)}
-            i18n={i18n}
-            theme={theme}
-            blurHash={attachments[4].blurHash}
-            bottomOverlay={withBottomOverlay}
-            noBorder={isSticker}
-            curveBottomRight={curveBottomRight}
-            playIconOverlay={isVideoAttachment(attachments[4])}
-            height={100}
-            width={100}
-            darkOverlay={moreMessagesOverlay}
-            overlayText={moreMessagesOverlayText}
-            attachment={attachments[4]}
-            url={getThumbnailUrl(attachments[4])}
-            showMediaNoLongerAvailableToast={showMediaNoLongerAvailableToast}
-            showVisualAttachment={showVisualAttachment}
-            cancelDownload={undefined}
-            startDownload={undefined}
-            onError={onError}
-          />
-        </div>
-      </div>
-      {detailPill}
-      {downloadPill}
-    </div>
-  );
-}
 
 function renderDownloadPill({
   attachments,

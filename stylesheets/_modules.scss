@@ -3326,6 +3326,13 @@ button.module-image__border-overlay:focus {
   height: 2.4em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+}
+
+.module-staged-generic-attachment__media-available {
+  font-size: 12px;
+  color: variables.$color-ultramarine;
+  margin-top: 5px;
+  text-align: center;
   -webkit-box-orient: vertical;
   text-overflow: ellipsis;
 }

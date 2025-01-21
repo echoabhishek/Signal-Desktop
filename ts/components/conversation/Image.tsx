@@ -32,6 +32,8 @@ export type Props = {
   alt: string;
   attachment: AttachmentForUIType;
   url?: string;
+  isSticker?: boolean;
+  isSending?: boolean;
 
   className?: string;
   height?: number;
@@ -79,6 +81,8 @@ export function Image({
   darkOverlay,
   height = 0,
   i18n,
+  isSticker = false,
+  isSending = false,
   noBackground,
   noBorder,
   showMediaNoLongerAvailableToast,
@@ -115,6 +119,8 @@ export function Image({
     },
     [attachment, showVisualAttachment]
   );
+
+  const isMediaDownloadable = isSticker || isSending || isDownloadable(attachment);
   const showVisualAttachmentKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>) => {
       if (
@@ -218,7 +224,7 @@ export function Image({
           tabIndex,
         });
 
-  const isMediaDownloadable = isDownloadable(attachment);
+  const isMediaDownloadable = isSticker || isDownloadable(attachment);
 
   return (
     <div
