@@ -62,6 +62,7 @@ import type { LinkPreviewType } from '../types/message/LinkPreviews';
 import { StagedLinkPreview } from './conversation/StagedLinkPreview';
 import type { DraftEditMessageType } from '../model-types.d';
 import { usePrevious } from '../hooks/usePrevious';
+import { useCallback } from 'react';
 import {
   matchBold,
   matchItalic,
@@ -155,7 +156,6 @@ export function CompositionInput(props: Props): React.ReactElement {
   const {
     children,
     conversationId,
-    disabled,
     draftBodyRanges,
     draftEditMessage,
     draftText,
@@ -163,27 +163,27 @@ export function CompositionInput(props: Props): React.ReactElement {
     i18n,
     inputApi,
     isFormattingEnabled,
-    isActive,
     large,
-    linkPreviewLoading,
     linkPreviewResult,
     moduleClassName,
     onCloseLinkPreview,
-    onBlur,
-    onFocus,
+    onDirtyChange,
+    onEditorStateChange,
     onPickEmoji,
-    onScroll,
     onSubmit,
-    ourConversationId,
-    placeholder,
+    onTextTooLong,
     platform,
-    quotedMessageId,
-    shouldHidePopovers,
-    skinTone,
     sendCounter,
+    skinTone,
     sortedGroupMembers,
     theme,
   } = props;
+
+  const handleCloseLinkPreview = useCallback(() => {
+    if (onCloseLinkPreview && linkPreviewResult) {
+      onCloseLinkPreview(conversationId);
+    }
+  }, [onCloseLinkPreview, conversationId, linkPreviewResult]);
 
   const refMerger = useRefMerger();
 
@@ -908,12 +908,12 @@ export function CompositionInput(props: Props): React.ReactElement {
                 />
               </div>
             )}
-            {conversationId && linkPreviewLoading && linkPreviewResult && (
+            {conversationId && linkPreviewResult && (
               <StagedLinkPreview
                 {...linkPreviewResult}
                 moduleClassName="CompositionInput__link-preview"
                 i18n={i18n}
-                onClose={() => onCloseLinkPreview?.(conversationId)}
+                onClose={handleCloseLinkPreview}
               />
             )}
             {children}

@@ -1,7 +1,7 @@
 // Copyright 2019 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import classNames from 'classnames';
 import { unescape } from 'lodash';
 
@@ -24,10 +24,36 @@ export type Props = LinkPreviewType & {
   onClose?: () => void;
 };
 
-export function StagedLinkPreview(props: Props): JSX.Element {
+export const StagedLinkPreview = React.memo(function StagedLinkPreview(props: Props): JSX.Element {
   const { date, description, domain, i18n, moduleClassName, onClose, title } =
     props;
   const isLoaded = Boolean(domain);
+
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (previewRef.current && !previewRef.current.contains(event.target as Node) && onClose) {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && onClose) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [onClose]);
 
   const getClassName = getClassNamesFor(
     'module-staged-link-preview',
@@ -68,6 +94,7 @@ export function StagedLinkPreview(props: Props): JSX.Element {
 
   return (
     <div
+      ref={previewRef}
       dir="auto"
       className={classNames(
         getClassName(''),
