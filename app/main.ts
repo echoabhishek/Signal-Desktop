@@ -98,6 +98,13 @@ import * as sqlChannels from './sql_channel';
 import * as windowState from './window_state';
 import type { CreateTemplateOptionsType } from './menu';
 import { createTemplate } from './menu';
+
+// Add this new import
+import { debounce } from 'lodash';
+
+// Add these new variables
+let lastKnownWindowSize: { width: number; height: number } | null = null;
+const WINDOW_RESIZE_DEBOUNCE_DELAY = 1000; // 1 second
 import { installFileHandler, installWebHandler } from './protocol_filter';
 import OS from '../ts/util/os/osMain';
 import { isProduction } from '../ts/util/version';
@@ -677,6 +684,32 @@ async function safeLoadURL(window: BrowserWindow, url: string): Promise<void> {
   }
 }
 
+function logWindowSize(window: BrowserWindow, context: string) {
+  const size = window.getSize();
+  console.log(`Window size (${context}): ${size[0]}x${size[1]}`);
+}
+
+const debouncedLogWindowSize = debounce(logWindowSize, WINDOW_RESIZE_DEBOUNCE_DELAY);
+
+function setupWindowSizeTracking(window: BrowserWindow) {
+  window.on('resize', () => {
+    debouncedLogWindowSize(window, 'resize');
+    const [width, height] = window.getSize();
+    lastKnownWindowSize = { width, height };
+  });
+
+  window.on('show', () => {
+    logWindowSize(window, 'show');
+    if (lastKnownWindowSize) {
+      window.setSize(lastKnownWindowSize.width, lastKnownWindowSize.height);
+    }
+  });
+
+  window.on('hide', () => {
+    logWindowSize(window, 'hide');
+  });
+}
+
 async function createWindow() {
   const usePreloadBundle =
     !isTestEnvironment(getEnvironment()) || forcePreloadBundle;
@@ -690,10 +723,14 @@ async function createWindow() {
     ? Math.min(windowConfig.height, maxHeight)
     : DEFAULT_HEIGHT;
 
+  // Ensure the window size is not larger than the screen size
+  const safeWidth = Math.min(width, maxWidth);
+  const safeHeight = Math.min(height, maxHeight);
+
   const windowOptions: Electron.BrowserWindowConstructorOptions = {
     show: false,
-    width,
-    height,
+    width: safeWidth,
+    height: safeHeight,
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     autoHideMenuBar: false,
@@ -771,86 +808,15 @@ async function createWindow() {
 
   // Create the browser window.
   mainWindow = new BrowserWindow(windowOptions);
-  if (settingsChannel) {
-    settingsChannel.setMainWindow(mainWindow);
-  }
+  mainWindow.loadURL(prepareURL(STATIC_PATH, 'main.html'));
 
-  mainWindowCreated = true;
-  setupSpellChecker(
-    mainWindow,
-    getPreferredSystemLocales(),
-    getLocaleOverride(),
-    getResolvedMessagesLocale().i18n,
-    getLogger()
-  );
-  if (!startInTray && windowConfig && windowConfig.maximized) {
-    mainWindow.maximize();
-  }
-  if (!startInTray && windowConfig && windowConfig.fullscreen) {
-    mainWindow.setFullScreen(true);
-  }
-  if (systemTrayService) {
-    systemTrayService.setMainWindow(mainWindow);
-  }
-
-  function saveWindowStats() {
-    if (!windowConfig) {
-      return;
-    }
-
-    getLogger().info(
-      'Updating BrowserWindow config: %s',
-      JSON.stringify(windowConfig)
-    );
-    ephemeralConfig.set('window', windowConfig);
-  }
-  const debouncedSaveStats = debounce(saveWindowStats, 500);
-
-  function captureWindowStats() {
-    if (!mainWindow) {
-      return;
-    }
-
-    const size = mainWindow.getSize();
-    const position = mainWindow.getPosition();
-
-    const newWindowConfig = {
-      maximized: mainWindow.isMaximized(),
-      autoHideMenuBar: mainWindow.autoHideMenuBar,
-      fullscreen: mainWindow.isFullScreen(),
-      width: size[0],
-      height: size[1],
-      x: position[0],
-      y: position[1],
-    };
-
-    if (
-      newWindowConfig.fullscreen !== windowConfig?.fullscreen ||
-      newWindowConfig.maximized !== windowConfig?.maximized
-    ) {
-      mainWindow.webContents.send('window:set-window-stats', {
-        isMaximized: newWindowConfig.maximized,
-        isFullScreen: newWindowConfig.fullscreen,
-      });
-    }
-
-    // so if we need to recreate the window, we have the most recent settings
-    windowConfig = newWindowConfig;
-
-    if (!windowState.requestedShutdown()) {
-      debouncedSaveStats();
-    }
-  }
-
-  mainWindow.on('resize', captureWindowStats);
-  mainWindow.on('move', captureWindowStats);
-
-  if (!ciMode && config.get<boolean>('openDevTools')) {
+  if (config.get('openDevTools')) {
     // Open the DevTools.
     mainWindow.webContents.openDevTools();
   }
 
-  await handleCommonWindowEvents(mainWindow);
+  handleCommonWindowEvents(mainWindow);
+  setupWindowSizeTracking(mainWindow);
 
   // App dock icon bounce
   bounce.init(mainWindow);
