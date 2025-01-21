@@ -684,30 +684,120 @@ async function safeLoadURL(window: BrowserWindow, url: string): Promise<void> {
   }
 }
 
-function logWindowSize(window: BrowserWindow, context: string) {
-  const size = window.getSize();
-  console.log(`Window size (${context}): ${size[0]}x${size[1]}`);
+function logWindowState(window: BrowserWindow, context: string) {
+  const state = getWindowState(window);
+  console.log(`Window state (${context}):`, JSON.stringify(state, null, 2));
 }
 
 const debouncedLogWindowSize = debounce(logWindowSize, WINDOW_RESIZE_DEBOUNCE_DELAY);
 
-function setupWindowSizeTracking(window: BrowserWindow) {
-  window.on('resize', () => {
-    debouncedLogWindowSize(window, 'resize');
-    const [width, height] = window.getSize();
-    lastKnownWindowSize = { width, height };
-  });
+interface WindowState {
+  size: { width: number; height: number };
+  position: { x: number; y: number };
+  isMaximized: boolean;
+  isFullScreen: boolean;
+}
 
-  window.on('show', () => {
-    logWindowSize(window, 'show');
-    if (lastKnownWindowSize) {
-      window.setSize(lastKnownWindowSize.width, lastKnownWindowSize.height);
+let lastKnownWindowState: WindowState | null = null;
+
+function getWindowState(window: BrowserWindow): WindowState {
+  const size = window.getSize();
+  const position = window.getPosition();
+  return {
+    size: { width: size[0], height: size[1] },
+    position: { x: position[0], y: position[1] },
+    isMaximized: window.isMaximized(),
+    isFullScreen: window.isFullScreen(),
+  };
+}
+
+function restoreWindowState(window: BrowserWindow, state: WindowState) {
+  if (state.isFullScreen) {
+    window.setFullScreen(true);
+  } else if (state.isMaximized) {
+    window.maximize();
+  } else {
+    const newBounds = {
+      width: state.size.width,
+      height: state.size.height,
+      x: state.position.x,
+      y: state.position.y,
+    };
+    
+    // Ensure the window is always visible on one of the available screens
+    const visibleOnScreen = screen.getAllDisplays().some(display => {
+      return isVisible(newBounds, display.bounds);
+    });
+
+    if (!visibleOnScreen) {
+      console.warn('Window would be outside visible screen area, resetting position');
+      const primaryDisplay = screen.getPrimaryDisplay();
+      newBounds.x = primaryDisplay.workArea.x;
+      newBounds.y = primaryDisplay.workArea.y;
     }
+
+    window.setBounds(newBounds);
+  }
+}
+
+function isVisible(windowBounds: Electron.Rectangle, screenBounds: Electron.Rectangle): boolean {
+  return (
+    windowBounds.x < screenBounds.x + screenBounds.width &&
+    windowBounds.x + windowBounds.width > screenBounds.x &&
+    windowBounds.y < screenBounds.y + screenBounds.height &&
+    windowBounds.y + windowBounds.height > screenBounds.y
+  );
+}
+
+function setupWindowSizeTracking(window: BrowserWindow) {
+  const updateWindowState = () => {
+    try {
+      lastKnownWindowState = getWindowState(window);
+      logWindowState(window, 'update');
+    } catch (error) {
+      console.error('Error updating window state:', error);
+    }
+  };
+
+  const debouncedUpdateWindowState = debounce(updateWindowState, WINDOW_RESIZE_DEBOUNCE_DELAY);
+
+  const eventHandlers = {
+    'resize': debouncedUpdateWindowState,
+    'move': debouncedUpdateWindowState,
+    'maximize': updateWindowState,
+    'unmaximize': updateWindowState,
+    'enter-full-screen': updateWindowState,
+    'leave-full-screen': updateWindowState,
+    'show': () => {
+      try {
+        logWindowState(window, 'show-before');
+        if (lastKnownWindowState) {
+          restoreWindowState(window, lastKnownWindowState);
+        }
+        logWindowState(window, 'show-after');
+      } catch (error) {
+        console.error('Error restoring window state:', error);
+      }
+    },
+    'hide': () => {
+      try {
+        updateWindowState();
+        logWindowState(window, 'hide');
+      } catch (error) {
+        console.error('Error handling window hide:', error);
+      }
+    }
+  };
+
+  Object.entries(eventHandlers).forEach(([event, handler]) => {
+    window.on(event as any, handler);
   });
 
-  window.on('hide', () => {
-    logWindowSize(window, 'hide');
-  });
+  return () => {
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      window.removeListener(event as any, handler);
+    });
+  };
 }
 
 async function createWindow() {
@@ -816,7 +906,12 @@ async function createWindow() {
   }
 
   handleCommonWindowEvents(mainWindow);
-  setupWindowSizeTracking(mainWindow);
+  const cleanupWindowSizeTracking = setupWindowSizeTracking(mainWindow);
+
+  mainWindow.on('closed', () => {
+    cleanupWindowSizeTracking();
+    mainWindow = undefined;
+  });
 
   // App dock icon bounce
   bounce.init(mainWindow);
