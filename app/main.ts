@@ -690,6 +690,10 @@ async function createWindow() {
     ? Math.min(windowConfig.height, maxHeight)
     : DEFAULT_HEIGHT;
 
+  let lastWindowSize: [number, number] = [width, height];
+
+  const isWayland = process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland';
+
   const windowOptions: Electron.BrowserWindowConstructorOptions = {
     show: false,
     width,
@@ -731,46 +735,71 @@ async function createWindow() {
     delete windowOptions.autoHideMenuBar;
   }
 
-  const startInTray =
-    isTestEnvironment(getEnvironment()) ||
-    (await systemTraySettingCache.get()) ===
-      SystemTraySetting.MinimizeToAndStartInSystemTray;
-
-  const haveFullWindowsBounds =
-    isNumber(windowOptions.x) &&
-    isNumber(windowOptions.y) &&
-    isNumber(windowOptions.width) &&
-    isNumber(windowOptions.height);
-  if (haveFullWindowsBounds) {
-    getLogger().info(
-      `visibleOnAnyScreen(window): x=${windowOptions.x}, y=${windowOptions.y}, ` +
-        `width=${windowOptions.width}, height=${windowOptions.height}`
-    );
-
-    const visibleOnAnyScreen = some(screen.getAllDisplays(), display => {
-      const displayBounds = get(display, 'bounds');
-      getLogger().info(
-        `visibleOnAnyScreen(display #${display.id}): ` +
-          `x=${displayBounds.x}, y=${displayBounds.y}, ` +
-          `width=${displayBounds.width}, height=${displayBounds.height}`
-      );
-
-      return isVisible(windowOptions as BoundsType, displayBounds);
-    });
-    if (!visibleOnAnyScreen) {
-      getLogger().info('visibleOnAnyScreen: Location reset needed');
-      delete windowOptions.x;
-      delete windowOptions.y;
-    }
+  const { x, y } = windowOptions;
+  const usingCustomPosition = Number.isInteger(x) && Number.isInteger(y);
+  if (!usingCustomPosition) {
+    delete windowOptions.x;
+    delete windowOptions.y;
   }
 
   getLogger().info(
-    'Initializing BrowserWindow config:',
+    'Initializing BrowserWindow config: %s',
     JSON.stringify(windowOptions)
   );
 
   // Create the browser window.
   mainWindow = new BrowserWindow(windowOptions);
+
+  if (isWayland) {
+    const ensureValidWindowSize = () => {
+      const currentDisplay = screen.getDisplayNearestPoint(mainWindow.getBounds());
+      const { workAreaSize } = currentDisplay;
+      lastWindowSize = [
+        Math.max(MIN_WIDTH, Math.min(lastWindowSize[0], workAreaSize.width)),
+        Math.max(MIN_HEIGHT, Math.min(lastWindowSize[1], workAreaSize.height))
+      ];
+    };
+
+    mainWindow.on('hide', () => {
+      if (!mainWindow.isFullScreen()) {
+        lastWindowSize = mainWindow.getSize();
+        ensureValidWindowSize();
+      }
+    });
+
+    mainWindow.on('show', () => {
+      if (!mainWindow.isFullScreen()) {
+        ensureValidWindowSize();
+        mainWindow.setSize(lastWindowSize[0], lastWindowSize[1]);
+      }
+    });
+
+    mainWindow.on('enter-full-screen', () => {
+      // Store the window size before entering fullscreen
+      lastWindowSize = mainWindow.getSize();
+      ensureValidWindowSize();
+    });
+
+    mainWindow.on('leave-full-screen', () => {
+      // Restore the window size after leaving fullscreen
+      ensureValidWindowSize();
+      mainWindow.setSize(lastWindowSize[0], lastWindowSize[1]);
+    });
+
+    // Handle moving between displays
+    mainWindow.on('move', ensureValidWindowSize);
+
+    // Handle manual window resizing
+    mainWindow.on('resize', () => {
+      if (!mainWindow.isFullScreen()) {
+        lastWindowSize = mainWindow.getSize();
+        ensureValidWindowSize();
+      }
+    });
+
+    // Periodically check and update window size
+    setInterval(ensureValidWindowSize, 1000);
+  }
   if (settingsChannel) {
     settingsChannel.setMainWindow(mainWindow);
   }
