@@ -183,7 +183,25 @@ export function TextStoryCreator({
     LinkPreviewApplied.None
   );
   const hasLinkPreviewApplied = linkPreviewApplied !== LinkPreviewApplied.None;
-  const [linkPreviewInputValue, setLinkPreviewInputValue] = useState('');
+const [linkPreviewInputValue, setLinkPreviewInputValue] = useState('');
+const linkPreviewInputRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      linkPreviewInputRef.current &&
+      !linkPreviewInputRef.current.contains(event.target as Node) &&
+      linkPreviewInputValue
+    ) {
+      setLinkPreviewInputValue('');
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [linkPreviewInputValue]);
 
   useEffect(() => {
     if (!linkPreviewInputValue) {
@@ -250,10 +268,16 @@ export function TextStoryCreator({
           name: 'arrow',
         },
       ],
-      placement: 'top',
+      placement: 'bottom',
       strategy: 'fixed',
     }
   );
+
+  const handleLinkPreviewInputClose = useCallback(() => {
+    setLinkPreviewInputValue('');
+    setLinkPreviewApplied(LinkPreviewApplied.None);
+    setIsLinkPreviewInputShowing(false);
+  }, []);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -556,17 +580,28 @@ export function TextStoryCreator({
                     data-popper-arrow
                     className="StoryCreator__popper__arrow"
                   />
-                  <Input
-                    disableSpellcheck
-                    i18n={i18n}
-                    moduleClassName="StoryCreator__link-preview-input"
-                    onChange={setLinkPreviewInputValue}
-                    placeholder={i18n(
-                      'icu:StoryCreator__link-preview-placeholder'
-                    )}
-                    ref={el => el?.focus()}
-                    value={linkPreviewInputValue}
-                  />
+                  <div ref={linkPreviewInputRef} className="StoryCreator__link-preview-input-wrapper">
+                    <Input
+                      disableSpellcheck
+                      i18n={i18n}
+                      moduleClassName="StoryCreator__link-preview-input"
+                      onChange={event => {
+                        setLinkPreviewInputValue(event.target.value);
+                        setLinkPreviewApplied(LinkPreviewApplied.Manual);
+                      }}
+                      placeholder={i18n(
+                        'icu:StoryCreator__link-preview-placeholder'
+                      )}
+                      ref={el => el?.focus()}
+                      value={linkPreviewInputValue}
+                    />
+                    <button
+                      type="button"
+                      className="StoryCreator__link-preview-input__close-button"
+                      onClick={handleLinkPreviewInputClose}
+                      aria-label={i18n('icu:close')}
+                    />
+                  </div>
                   <div className="StoryCreator__link-preview-container">
                     {linkPreview ? (
                       <>
