@@ -24,6 +24,7 @@ import {
 import { postSaveUpdates } from '../util/cleanup';
 import { isCustomError } from './helpers';
 import { SendActionType, isSent, sendStateReducer } from './MessageSendState';
+import { isOnline, waitForOnline } from '../util/networkUtils';
 
 import type { CustomError, MessageAttributesType } from '../model-types.d';
 import type { CallbackResultType } from '../textsecure/Types.d';
@@ -32,6 +33,32 @@ import type { ServiceIdString } from '../types/ServiceId';
 import type { SendStateByConversationId } from './MessageSendState';
 
 /* eslint-disable more/no-then */
+
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 5000;
+
+async function retryMessageSend(
+  sendFunction: () => Promise<CallbackResultType>,
+  maxAttempts: number = MAX_RETRY_ATTEMPTS
+): Promise<CallbackResultType> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await sendFunction();
+    } catch (error) {
+      lastError = error;
+      log.warn(`Message send attempt ${attempt} failed:`, error);
+
+      if (attempt < maxAttempts) {
+        log.info(`Retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+  }
+
+  throw lastError;
+}
 
 export async function send(
   message: MessageModel,
@@ -52,6 +79,12 @@ export async function send(
 
   updateLeftPane();
 
+  if (!isOnline()) {
+    log.info('Device is offline. Waiting for network connection...');
+    await waitForOnline();
+    log.info('Device is now online. Proceeding with message send.');
+  }
+
   let result:
     | { success: true; value: CallbackResultType }
     | {
@@ -59,10 +92,15 @@ export async function send(
         value: CustomError | SendMessageProtoError;
       };
   try {
-    const value = await (promise as Promise<CallbackResultType>);
+    const value = await retryMessageSend(() => promise as Promise<CallbackResultType>);
     result = { success: true, value };
   } catch (err) {
     result = { success: false, value: err };
+    log.error('Message send failed after retries:', {
+      error: err,
+      messageId: message.id,
+      conversationId: message.attributes.conversationId,
+    });
   }
 
   updateLeftPane();
