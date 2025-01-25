@@ -10,6 +10,11 @@ export function shouldShowMediaNotAvailableIcon(
     return false;
   }
 
+  // Don't show the icon for pending attachments
+  if (attachment.pending) {
+    return false;
+  }
+
   // Check if the attachment is older than 45 days
   const FORTY_FIVE_DAYS = 45 * 24 * 60 * 60 * 1000;
   if (isOlderThan(timestamp, FORTY_FIVE_DAYS)) {
