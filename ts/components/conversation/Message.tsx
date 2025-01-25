@@ -986,6 +986,21 @@ export class Message extends React.PureComponent<Props, State> {
           : null
       );
 
+      if (isSticker) {
+        const stickerData = firstAttachment?.data;
+        const stickerUnavailable = !stickerData || stickerData.length === 0;
+        
+        if (stickerUnavailable) {
+          return (
+            <div className={containerClassName}>
+              <div className="module-message__sticker-unavailable">
+                {i18n('icu:Message__sticker-not-available')}
+              </div>
+            </div>
+          );
+        }
+      }
+
       if (isGIF(attachments)) {
         return (
           <div className={containerClassName}>
@@ -1056,9 +1071,10 @@ export class Message extends React.PureComponent<Props, State> {
       }
     }
     const isAttachmentAudio = isAudio(attachments);
+    const isSticker = firstAttachment?.contentType === 'application/x-signal-sticker';
 
     // Undownloadable audio and generic files
-    if (isPermanentlyUndownloadable(firstAttachment)) {
+    if (isPermanentlyUndownloadable(firstAttachment) && !isSticker) {
       const containerClassName = classNames(
         'module-message__undownloadable-attachment',
         withContentAbove

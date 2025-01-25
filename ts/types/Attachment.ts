@@ -1285,6 +1285,9 @@ export function isDownloadable(attachment: AttachmentType): boolean {
 export function isPermanentlyUndownloadable(
   attachment: AttachmentType
 ): boolean {
+  if (attachment.contentType === 'application/x-signal-sticker') {
+    return false;
+  }
   return Boolean(!isDownloadable(attachment) && attachment.error);
 }
 
