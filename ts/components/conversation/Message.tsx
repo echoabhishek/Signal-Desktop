@@ -52,6 +52,8 @@ import type { WidthBreakpoint } from '../_util';
 import { OutgoingGiftBadgeModal } from '../OutgoingGiftBadgeModal';
 import * as log from '../../logging/log';
 import { StoryViewModeType } from '../../types/Stories';
+
+const STICKER_SIZE = 200; // pixels
 import type {
   AttachmentForUIType,
   AttachmentType,
@@ -926,6 +928,72 @@ export class Message extends React.PureComponent<Props, State> {
     );
   }
 
+  private renderSticker(): JSX.Element | null {
+    const {
+      attachments,
+      i18n,
+      isSticker,
+      showLightbox,
+      theme,
+    } = this.props;
+    const { imageBroken } = this.state;
+
+    if (!isSticker || !attachments || !attachments[0]) {
+      log.warn('Attempted to render a sticker message without valid attachment');
+      return null;
+    }
+
+    const firstAttachment = attachments[0];
+
+    const containerClassName = classNames(
+      'module-message__sticker-container',
+      'module-message__sticker-container--with-content-below'
+    );
+
+    if (!firstAttachment.url || imageBroken) {
+      log.error('Sticker attachment is missing URL or image is broken');
+      return (
+        <div className={containerClassName} aria-label={i18n('icu:Message--sticker-error')}>
+          <div className="module-message__sticker-error">
+            {i18n('icu:Message--sticker-error')}
+          </div>
+        </div>
+      );
+    }
+
+    if (!isDownloaded(firstAttachment)) {
+      return (
+        <div className={containerClassName} aria-label={i18n('icu:Message--sticker-downloading')}>
+          <div className="module-message__sticker-loading">
+            <Spinner svgSize="normal" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={containerClassName}>
+        <Image
+          attachment={firstAttachment}
+          size={STICKER_SIZE}
+          theme={theme}
+          i18n={i18n}
+          onError={(e) => {
+            log.error('Error loading sticker image:', e);
+            this.handleImageError();
+          }}
+          onClick={() => {
+            showLightbox({
+              attachment: firstAttachment,
+              messageId: this.props.id,
+            });
+          }}
+          aria-label={i18n('icu:Message--sticker')}
+        />
+      </div>
+    );
+  }
+
   public renderAttachment(): JSX.Element | null {
     const {
       attachments,
@@ -961,6 +1029,11 @@ export class Message extends React.PureComponent<Props, State> {
     const collapseMetadata =
       this.#getMetadataPlacement() === MetadataPlacement.NotRendered;
 
+    // Handle stickers separately
+    if (isSticker) {
+      return this.renderSticker();
+    }
+
     if (!attachments || !attachments[0]) {
       return null;
     }
@@ -972,17 +1045,13 @@ export class Message extends React.PureComponent<Props, State> {
     const displayImage = canDisplayImage(attachments);
 
     if (displayImage && !imageBroken) {
-      const prefix = isSticker ? 'sticker' : 'attachment';
       const containerClassName = classNames(
-        `module-message__${prefix}-container`,
+        'module-message__attachment-container',
         withContentAbove
-          ? `module-message__${prefix}-container--with-content-above`
+          ? 'module-message__attachment-container--with-content-above'
           : null,
         withContentBelow
           ? 'module-message__attachment-container--with-content-below'
-          : null,
-        isSticker && !collapseMetadata
-          ? 'module-message__sticker-container--with-content-below'
           : null
       );
 
@@ -2936,9 +3005,13 @@ export class Message extends React.PureComponent<Props, State> {
       return null;
     }
 
-    if (isSticker && (imageBroken || !attachments || !attachments.length)) {
-      return null;
-    }
+if (isSticker) {
+  if (imageBroken) {
+    return null;
+  }
+} else if (!attachments || !attachments.length) {
+  return null;
+}
 
     let wrapperProps: DetailedHTMLProps<
       HTMLAttributes<HTMLDivElement>,
