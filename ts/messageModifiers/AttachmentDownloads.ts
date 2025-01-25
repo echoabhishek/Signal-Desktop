@@ -74,6 +74,14 @@ export async function addAttachmentToMessage(
     log.error(`${logPrefix}: Attachment did not have valid signature (digest)`);
   }
 
+  // Check if the attachment is a sticker
+  const isSticker = attachment.contentType && attachment.contentType.startsWith('image/') && attachment.sticker;
+
+  // If it's a sticker, ensure it's marked as available
+  if (isSticker) {
+    attachment.isAvailable = true;
+  }
+
   if (type === 'long-message') {
     let handledAnywhere = false;
     let attachmentData: Uint8Array | undefined;
@@ -173,213 +181,67 @@ export async function addAttachmentToMessage(
       return existing;
     }
 
+    // Check if the attachment is a sticker and mark it as available
+    if (attachment.contentType && attachment.contentType.startsWith('image/') && attachment.sticker) {
+      return { ...attachment, isAvailable: true };
+    }
+
     return attachment;
   };
 
-  if (type === 'attachment') {
-    const attachments = message.get('attachments');
+if (type === 'attachment') {
+  const attachments = message.get('attachments');
+  const editHistory = message.get('editHistory');
+  let handledAnywhere = false;
 
-    let handledAnywhere = false;
-    let handledInEditHistory = false;
+  const processAttachment = (item: AttachmentType) => {
+    if (getAttachmentSignatureSafe(item) === attachmentSignature) {
+      handledAnywhere = true;
+      // Check if the attachment is a sticker and mark it as available
+      if (item.contentType && item.contentType.startsWith('image/') && item.sticker) {
+        return { ...attachment, isAvailable: true };
+      }
+      return attachment;
+    }
+    return item;
+  };
 
-    const editHistory = message.get('editHistory');
-    if (editHistory) {
-      const newEditHistory = editHistory.map(edit => {
-        if (!edit.attachments) {
-          return edit;
-        }
+  if (editHistory) {
+    const newEditHistory = editHistory.map(edit => {
+      if (!edit.attachments) {
+        return edit;
+      }
 
+      const newAttachments = edit.attachments.map(processAttachment);
+
+      if (newAttachments !== edit.attachments) {
         return {
           ...edit,
-          // Loop through all the attachments to find the attachment we intend
-          // to replace.
-          attachments: edit.attachments.map(item => {
-            const newItem = maybeReplaceAttachment(item);
-            handledInEditHistory ||= item !== newItem;
-            handledAnywhere ||= handledInEditHistory;
-            return newItem;
-          }),
-        };
-      });
-
-      if (handledInEditHistory) {
-        message.set({ editHistory: newEditHistory });
-      }
-    }
-
-    if (attachments) {
-      message.set({
-        attachments: attachments.map(item => {
-          const newItem = maybeReplaceAttachment(item);
-          handledAnywhere ||= item !== newItem;
-          return newItem;
-        }),
-      });
-    }
-
-    if (!handledAnywhere) {
-      log.warn(
-        `${logPrefix}: 'attachment' type found no matching place to apply`
-      );
-    }
-
-    return;
-  }
-
-  if (type === 'preview') {
-    const preview = message.get('preview');
-
-    let handledInEditHistory = false;
-
-    const editHistory = message.get('editHistory');
-    if (preview && editHistory) {
-      const newEditHistory = editHistory.map(edit => {
-        if (!edit.preview) {
-          return edit;
-        }
-
-        return {
-          ...edit,
-          preview: edit.preview.map(item => {
-            if (!item.image) {
-              return item;
-            }
-
-            const newImage = maybeReplaceAttachment(item.image);
-            handledInEditHistory ||= item.image !== newImage;
-            return { ...item, image: newImage };
-          }),
-        };
-      });
-
-      if (handledInEditHistory) {
-        message.set({ editHistory: newEditHistory });
-      }
-    }
-
-    if (preview) {
-      message.set({
-        preview: preview.map(item => {
-          if (!item.image) {
-            return item;
-          }
-          return {
-            ...item,
-            image: maybeReplaceAttachment(item.image),
-          };
-        }),
-      });
-    }
-
-    return;
-  }
-
-  if (type === 'contact') {
-    const contacts = message.get('contact');
-    if (!contacts?.length) {
-      throw new Error(`${logPrefix}: no contacts, cannot add attachment!`);
-    }
-    let handled = false;
-
-    const newContacts = contacts.map(contact => {
-      if (!contact.avatar?.avatar) {
-        return contact;
-      }
-
-      const existingAttachment = contact.avatar.avatar;
-
-      const newAttachment = maybeReplaceAttachment(existingAttachment);
-      if (existingAttachment !== newAttachment) {
-        handled = true;
-        return {
-          ...contact,
-          avatar: { ...contact.avatar, avatar: newAttachment },
+          attachments: newAttachments,
         };
       }
-      return contact;
+
+      return edit;
     });
 
-    if (!handled) {
-      throw new Error(
-        `${logPrefix}: Couldn't find matching contact with avatar attachment for message`
-      );
+    if (handledAnywhere) {
+      message.set({ editHistory: newEditHistory });
     }
-
-    message.set({ contact: newContacts });
-    return;
   }
 
-  if (type === 'quote') {
-    const quote = message.get('quote');
-    const editHistory = message.get('editHistory');
-    let handledInEditHistory = false;
-    if (editHistory) {
-      const newEditHistory = editHistory.map(edit => {
-        if (!edit.quote) {
-          return edit;
-        }
+  if (attachments) {
+    const newAttachments = attachments.map(processAttachment);
 
-        return {
-          ...edit,
-          quote: {
-            ...edit.quote,
-            attachments: edit.quote.attachments.map(item => {
-              const { thumbnail } = item;
-              if (!thumbnail) {
-                return item;
-              }
-
-              const newThumbnail = maybeReplaceAttachment(thumbnail);
-              if (thumbnail !== newThumbnail) {
-                handledInEditHistory = true;
-              }
-              return { ...item, thumbnail: newThumbnail };
-            }),
-          },
-        };
-      });
-
-      if (handledInEditHistory) {
-        message.set({ editHistory: newEditHistory });
-      }
+    if (handledAnywhere) {
+      message.set({ attachments: newAttachments });
     }
-
-    if (quote) {
-      const newQuote = {
-        ...quote,
-        attachments: quote.attachments.map(item => {
-          const { thumbnail } = item;
-          if (!thumbnail) {
-            return item;
-          }
-
-          return {
-            ...item,
-            thumbnail: maybeReplaceAttachment(thumbnail),
-          };
-        }),
-      };
-
-      message.set({ quote: newQuote });
-    }
-
-    return;
   }
 
-  if (type === 'sticker') {
-    const sticker = message.get('sticker');
-    if (!sticker) {
-      throw new Error(`${logPrefix}: sticker didn't exist`);
-    }
-
-    message.set({
-      sticker: {
-        ...sticker,
-        data: sticker.data ? maybeReplaceAttachment(sticker.data) : attachment,
-      },
-    });
-    return;
+  if (!handledAnywhere) {
+    log.warn(
+      `${logPrefix}: 'attachment' type found no matching place to apply`
+    );
   }
 
-  throw new Error(`${logPrefix}: Unknown job type ${type}`);
+  return;
 }
