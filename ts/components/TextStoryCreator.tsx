@@ -55,6 +55,60 @@ enum LinkPreviewApplied {
   Manual = 'Manual',
 }
 
+export function TextStoryCreator({
+  debouncedMaybeGrabLinkPreview,
+  i18n,
+  isSending,
+  linkPreview,
+  onClose,
+  onDone,
+  onUseEmoji,
+  onSetSkinTone,
+  recentEmojis,
+  skinTone,
+}: PropsType): JSX.Element {
+  const [text, setText] = useState('');
+  const [textStyle, setTextStyle] = useState(TextStyle.Default);
+  const [textBackground, setTextBackground] = useState(TextBackground.None);
+  const [backgroundColor, setBackgroundColor] = useState(BackgroundStyle.BG1);
+  const [isColorPickerShowing, setIsColorPickerShowing] = useState(false);
+  const [isLinkPreviewInputShowing, setIsLinkPreviewInputShowing] = useState(false);
+  const [linkPreviewInputValue, setLinkPreviewInputValue] = useState('');
+  const [isDiscardDialogShowing, setIsDiscardDialogShowing] = useState(false);
+  const [linkPreviewApplied, setLinkPreviewApplied] = useState(LinkPreviewApplied.None);
+
+  const popperReferenceRef = useRef<HTMLDivElement>(null);
+  const popperRef = useRef<HTMLDivElement>(null);
+
+  const { styles, attributes } = usePopper(
+    popperReferenceRef.current,
+    popperRef.current,
+    {
+      placement: 'bottom',
+      strategy: 'fixed',
+    }
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popperRef.current &&
+        !popperRef.current.contains(event.target as Node) &&
+        popperReferenceRef.current &&
+        !popperReferenceRef.current.contains(event.target as Node)
+      ) {
+        setIsLinkPreviewInputShowing(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Rest of the component code...
+
 enum TextStyle {
   Default,
   Regular,
@@ -108,6 +162,65 @@ function getBackground(
   return {
     gradient: {
       angle,
+      colors,
+      positions,
+    },
+  };
+}
+
+export function TextStoryCreator({
+  debouncedMaybeGrabLinkPreview,
+  i18n,
+  isSending,
+  linkPreview,
+  onClose,
+  onDone,
+  onUseEmoji,
+  onSetSkinTone,
+  recentEmojis,
+  skinTone,
+}: PropsType): JSX.Element {
+  const [text, setText] = useState('');
+  const [textStyle, setTextStyle] = useState(TextStyle.Default);
+  const [textBackground, setTextBackground] = useState(TextBackground.None);
+  const [backgroundColor, setBackgroundColor] = useState(BackgroundStyle.BG1);
+  const [isColorPickerShowing, setIsColorPickerShowing] = useState(false);
+  const [isLinkPreviewInputShowing, setIsLinkPreviewInputShowing] = useState(false);
+  const [linkPreviewInputValue, setLinkPreviewInputValue] = useState('');
+  const [isDiscardDialogShowing, setIsDiscardDialogShowing] = useState(false);
+  const [linkPreviewApplied, setLinkPreviewApplied] = useState(LinkPreviewApplied.None);
+
+  const popperReferenceRef = useRef<HTMLDivElement>(null);
+  const popperRef = useRef<HTMLDivElement>(null);
+
+  const { styles, attributes } = usePopper(
+    popperReferenceRef.current,
+    popperRef.current,
+    {
+      placement: 'bottom',
+      strategy: 'fixed',
+    }
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popperRef.current &&
+        !popperRef.current.contains(event.target as Node) &&
+        popperReferenceRef.current &&
+        !popperReferenceRef.current.contains(event.target as Node)
+      ) {
+        setIsLinkPreviewInputShowing(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Rest of the component code...
       startColor: colors.at(0),
       endColor: colors.at(-1),
       colors,
