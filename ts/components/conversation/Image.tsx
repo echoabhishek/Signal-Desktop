@@ -20,6 +20,7 @@ import {
 } from '../../types/Attachment';
 import { ProgressCircle } from '../ProgressCircle';
 import { useUndownloadableMediaHandler } from '../../hooks/useUndownloadableMediaHandler';
+import { shouldShowMediaNotAvailableIcon } from '../../util/attachmentAvailability';
 
 export enum CurveType {
   None = 0,
@@ -97,6 +98,41 @@ export function Image({
   cropHeight = 0,
 }: Props): JSX.Element {
   const resolvedBlurHash = blurHash || defaultBlurHash(theme);
+  const showMediaNotAvailableIcon = shouldShowMediaNotAvailableIcon(
+    attachment,
+    attachment.timestamp
+  );
+
+  const canDisplayImage = isReadyToView(attachment);
+  const isDownloaded = Boolean(attachment.path);
+  const { isUndownloadable, handleUndownloadableMedia } =
+    useUndownloadableMediaHandler(attachment);
+
+  const handleClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (showMediaNotAvailableIcon) {
+        if (showMediaNoLongerAvailableToast) {
+          showMediaNoLongerAvailableToast();
+        }
+      } else if (isUndownloadable) {
+        handleUndownloadableMedia();
+      } else if (canDisplayImage) {
+        showVisualAttachment?.(attachment);
+      } else if (startDownload) {
+        startDownload();
+      }
+    },
+    [
+      attachment,
+      canDisplayImage,
+      handleUndownloadableMedia,
+      isUndownloadable,
+      showMediaNoLongerAvailableToast,
+      showMediaNotAvailableIcon,
+      showVisualAttachment,
+      startDownload,
+    ]
+  );
 
   const curveStyles: CSSProperties = {
     borderStartStartRadius: curveTopLeft || CurveType.None,
@@ -105,19 +141,10 @@ export function Image({
     borderEndEndRadius: curveBottomRight || CurveType.None,
   };
 
-  const showVisualAttachmentClick = useCallback(
-    (event: React.MouseEvent) => {
-      if (showVisualAttachment) {
-        event.preventDefault();
-        event.stopPropagation();
-        showVisualAttachment(attachment);
-      }
-    },
-    [attachment, showVisualAttachment]
-  );
   const showVisualAttachmentKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>) => {
       if (
+        !showMediaNotAvailableIcon &&
         showVisualAttachment &&
         (event.key === 'Enter' || event.key === 'Space')
       ) {
@@ -126,7 +153,7 @@ export function Image({
         showVisualAttachment(attachment);
       }
     },
-    [attachment, showVisualAttachment]
+    [attachment, showMediaNotAvailableIcon, showVisualAttachment]
   );
   const cancelDownloadClick = useCallback(
     (event: React.MouseEvent) => {
@@ -247,22 +274,65 @@ export function Image({
         height: height - cropHeight,
         ...curveStyles,
       }}
+      onClick={handleClick}
+      onKeyDown={showVisualAttachmentKeyDown}
+      role="button"
+      tabIndex={tabIndex}
     >
-      {imageOrBlurHash}
-      {startDownloadOrUnavailableButton}
-      {spinner}
-
-      {attachment.caption ? (
-        <img
-          className="module-image__caption-icon"
-          src="images/caption-shadow.svg"
-          alt={i18n('icu:imageCaptionIconAlt')}
-        />
-      ) : null}
-      {bottomOverlay ? (
-        <div
-          className="module-image__bottom-overlay"
-          style={{
+      {showMediaNotAvailableIcon ? (
+        <div className="module-image__media-not-available">
+          <i className="module-image__media-not-available-icon" />
+          <div className="module-image__media-not-available-text">
+            {i18n('icu:mediaNoLongerAvailable')}
+          </div>
+        </div>
+      ) : (
+        <>
+          {canDisplayImage ? (
+            <img
+              alt={alt}
+              className={imageClassName}
+              onError={onError}
+              src={url}
+              style={{
+                height: height || 'auto',
+                width: width || 'auto',
+              }}
+            />
+          ) : (
+            <div
+              className={classNames(
+                'module-image__loading-placeholder',
+                imageClassName
+              )}
+              style={{
+                height: height || 200,
+                width: width || 200,
+              }}
+            >
+              {isIncremental(attachment) ? (
+                <ProgressCircle
+                  size={50}
+                  percentage={attachment.downloadedPercentage}
+                />
+              ) : (
+                <Spinner size="24px" svgSize="small" />
+              )}
+            </div>
+          )}
+          {startDownloadOrUnavailableButton}
+          {spinner}
+          {attachment.caption && (
+            <img
+              className="module-image__caption-icon"
+              src="images/caption-shadow.svg"
+              alt={i18n('icu:imageCaptionIconAlt')}
+            />
+          )}
+          {bottomOverlay && (
+            <div
+              className="module-image__bottom-overlay"
+              style={{
             borderBottomLeftRadius: curveBottomLeft || CurveType.None,
             borderBottomRightRadius: curveBottomRight || CurveType.None,
           }}

@@ -17,6 +17,7 @@ import {
   isImageAttachment,
   isVideoAttachment,
 } from '../../types/Attachment';
+import { shouldShowMediaNotAvailableIcon } from '../../util/attachmentAvailability';
 
 export type Props<T extends AttachmentType | AttachmentDraftType> = Readonly<{
   attachments: ReadonlyArray<T>;
@@ -86,6 +87,11 @@ export function AttachmentList<T extends AttachmentType | AttachmentDraftType>({
           const isVideo = isVideoAttachment(attachment);
           const closeAttachment = () => onCloseAttachment(attachment);
 
+          const showMediaNotAvailableIcon = shouldShowMediaNotAvailableIcon(
+            attachment,
+            attachment.timestamp
+          );
+
           if (
             (isImage && canDisplayImage([attachment])) ||
             isVideo ||
@@ -98,40 +104,29 @@ export function AttachmentList<T extends AttachmentType | AttachmentDraftType>({
               ? () => onClickAttachment(attachment)
               : undefined;
 
-            const imgElement = (
-              <Image
-                key={key}
-                alt={i18n('icu:stagedImageAttachment', {
-                  path: attachment.fileName || url || index.toString(),
-                })}
-                className="module-staged-attachment"
-                i18n={i18n}
-                attachment={attachment}
-                curveBottomLeft={CurveType.Tiny}
-                curveBottomRight={CurveType.Tiny}
-                curveTopLeft={CurveType.Tiny}
-                curveTopRight={CurveType.Tiny}
-                playIconOverlay={isVideo}
-                height={IMAGE_HEIGHT}
-                width={IMAGE_WIDTH}
-                url={imageUrl}
-                closeButton
-                showVisualAttachment={clickAttachment}
-                onClickClose={closeAttachment}
-                onError={closeAttachment}
-              />
+            return (
+              <div key={key} className="module-attachments__attachment">
+                <Image
+                  alt={i18n('icu:stagedImageAttachment', {
+                    fileName: attachment.fileName,
+                  })}
+                  attachment={attachment}
+                  softCorners
+                  playIconOverlay={isVideo}
+                  height={IMAGE_HEIGHT}
+                  width={IMAGE_WIDTH}
+                  url={imageUrl}
+                  closeButton
+                  i18n={i18n}
+                  onClick={clickAttachment}
+                  onClickClose={closeAttachment}
+                  onError={() => {
+                    // TODO: DESKTOP-687
+                  }}
+                  showMediaNotAvailableIcon={showMediaNotAvailableIcon}
+                />
+              </div>
             );
-
-            if (isImage && canEditImages) {
-              return (
-                <div className="module-attachments--editable" key={key}>
-                  {imgElement}
-                  <div className="module-attachments__edit-icon" />
-                </div>
-              );
-            }
-
-            return imgElement;
           }
 
           return (
