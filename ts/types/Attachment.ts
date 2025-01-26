@@ -1285,6 +1285,22 @@ export function isDownloadable(attachment: AttachmentType): boolean {
 export function isPermanentlyUndownloadable(
   attachment: AttachmentType
 ): boolean {
+  // Stickers are never permanently undownloadable
+  if (attachment.isSticker) {
+    return false;
+  }
+
+  // Local attachments are not permanently undownloadable
+  if (isAttachmentLocallySaved(attachment)) {
+    return false;
+  }
+
+  // Pending attachments are not permanently undownloadable
+  if (attachment.pending) {
+    return false;
+  }
+
+  // Keep the original check for non-downloadable attachments with errors
   return Boolean(!isDownloadable(attachment) && attachment.error);
 }
 
