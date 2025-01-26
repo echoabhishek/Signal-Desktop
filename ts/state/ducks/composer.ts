@@ -108,6 +108,7 @@ type ComposerStateByConversationType = {
   quotedMessage?: QuotedMessageForComposerType;
   sendCounter: number;
   shouldSendHighQualityAttachments?: boolean;
+  isAttachmentBeingAdded: boolean;
 };
 
 export type QuotedMessageForComposerType = ReadonlyDeep<{
@@ -122,6 +123,19 @@ export type ComposerStateType = {
   conversations: Record<string, ComposerStateByConversationType>;
 };
 
+export type ComposerStateByConversationType = {
+  attachments: ReadonlyArray<AttachmentDraftType>;
+  focusCounter: number;
+  isDisabled: boolean;
+  linkPreviewLoading: boolean;
+  linkPreviewResult?: LinkPreviewType;
+  messageCompositionId: string;
+  quotedMessage?: QuotedMessageForComposerType;
+  sendCounter: number;
+  shouldSendHighQualityAttachments?: boolean;
+  isAttachmentBeingAdded: boolean;
+};
+
 function getEmptyComposerState(): ComposerStateByConversationType {
   return {
     attachments: [],
@@ -130,6 +144,7 @@ function getEmptyComposerState(): ComposerStateByConversationType {
     linkPreviewLoading: false,
     messageCompositionId: generateUuid(),
     sendCounter: 0,
+    isAttachmentBeingAdded: false,
   };
 }
 
@@ -146,10 +161,35 @@ const ADD_PENDING_ATTACHMENT = 'composer/ADD_PENDING_ATTACHMENT';
 const INCREMENT_SEND_COUNTER = 'composer/INCREMENT_SEND_COUNTER';
 const REPLACE_ATTACHMENTS = 'composer/REPLACE_ATTACHMENTS';
 const RESET_COMPOSER = 'composer/RESET_COMPOSER';
-export const SET_FOCUS = 'composer/SET_FOCUS';
-const SET_HIGH_QUALITY_SETTING = 'composer/SET_HIGH_QUALITY_SETTING';
+const RESET_LINK_PREVIEW = 'composer/RESET_LINK_PREVIEW';
+const SET_LINK_PREVIEW = 'composer/SET_LINK_PREVIEW';
 const SET_QUOTED_MESSAGE = 'composer/SET_QUOTED_MESSAGE';
+const START_ATTACHMENT_UPLOAD = 'composer/START_ATTACHMENT_UPLOAD';
+const FINISH_ATTACHMENT_UPLOAD = 'composer/FINISH_ATTACHMENT_UPLOAD';
 const SET_COMPOSER_DISABLED = 'composer/SET_COMPOSER_DISABLED';
+
+// Action creators
+export function startAttachmentUpload(
+  conversationId: string
+): { type: typeof START_ATTACHMENT_UPLOAD; payload: { conversationId: string } } {
+  return {
+    type: START_ATTACHMENT_UPLOAD,
+    payload: {
+      conversationId,
+    },
+  };
+}
+
+export function finishAttachmentUpload(
+  conversationId: string
+): { type: typeof FINISH_ATTACHMENT_UPLOAD; payload: { conversationId: string } } {
+  return {
+    type: FINISH_ATTACHMENT_UPLOAD,
+    payload: {
+      conversationId,
+    },
+  };
+}
 
 type AddPendingAttachmentActionType = ReadonlyDeep<{
   type: typeof ADD_PENDING_ATTACHMENT;
@@ -795,14 +835,40 @@ export function setQuoteByMessageId(
 function addAttachment(
   conversationId: string,
   attachment: InMemoryAttachmentDraftType
-): ThunkAction<void, RootStateType, unknown, ReplaceAttachmentsActionType> {
+): ThunkAction<void, RootStateType, unknown, ReplaceAttachmentsActionType | ReturnType<typeof startAttachmentUpload> | ReturnType<typeof finishAttachmentUpload>> {
   return async (dispatch, getState) => {
-    // We do async operations first so multiple in-process addAttachments don't stomp on
-    //   each other.
-    const onDisk = await writeDraftAttachment(attachment);
-    const toAdd = { ...onDisk, clientUuid: generateUuid() };
+    dispatch(startAttachmentUpload(conversationId));
 
-    const state = getState();
+    try {
+      // We do async operations first so multiple in-process addAttachments don't stomp on
+      //   each other.
+      const onDisk = await writeDraftAttachment(attachment);
+      const toAdd = { ...onDisk, clientUuid: generateUuid() };
+
+      const state = getState();
+      const { attachments } = getComposerStateForConversation(
+        state.composer,
+        conversationId
+      );
+
+      const newAttachments = [...attachments, toAdd];
+      dispatch(replaceAttachments(conversationId, newAttachments));
+    } catch (error) {
+      log.error('Failed to add attachment:', Errors.toLogFormat(error));
+      dispatch(showToast({ toastType: ToastType.Error, message: i18n('icu:addAttachmentFailed') }));
+      // Remove the failed attachment from the state
+      const state = getState();
+      const { attachments } = getComposerStateForConversation(
+        state.composer,
+        conversationId
+      );
+      const newAttachments = attachments.filter(a => a.path !== attachment.path);
+      dispatch(replaceAttachments(conversationId, newAttachments));
+    } finally {
+      dispatch(finishAttachmentUpload(conversationId));
+    }
+  };
+}
 
     const isSelectedConversation =
       state.conversations.selectedConversationId === conversationId;
@@ -1462,9 +1528,28 @@ export function reducer(
 
     return updateComposerState(state, action, () => ({
       attachments,
+      isAttachmentBeingAdded: false,
       ...(attachments.length
         ? {}
         : { shouldSendHighQualityAttachments: undefined }),
+    }));
+  }
+
+  if (action.type === START_ATTACHMENT_UPLOAD) {
+    return updateComposerState(state, action, () => ({
+      isAttachmentBeingAdded: true,
+    }));
+  }
+
+  if (action.type === FINISH_ATTACHMENT_UPLOAD) {
+    return updateComposerState(state, action, () => ({
+      isAttachmentBeingAdded: false,
+    }));
+  }
+
+  if (action.type === FINISH_ATTACHMENT_UPLOAD) {
+    return updateComposerState(state, action, () => ({
+      isAttachmentBeingAdded: false,
     }));
   }
 
