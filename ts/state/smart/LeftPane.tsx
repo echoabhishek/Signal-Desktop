@@ -98,6 +98,18 @@ import { SmartRelinkDialog } from './RelinkDialog';
 import { SmartToastManager } from './ToastManager';
 import type { PropsType as SmartUnsupportedOSDialogPropsType } from './UnsupportedOSDialog';
 import { SmartUnsupportedOSDialog } from './UnsupportedOSDialog';
+import { useSelector } from 'react-redux';
+import { getConversations } from '../selectors/conversations';
+import { isConversationUnread } from '../../util/isConversationUnread';
+
+const getUnreadCount = (conversations) => {
+  return conversations.reduce((count, conversation) => {
+    if (isConversationUnread(conversation)) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+};
 import { SmartUpdateDialog } from './UpdateDialog';
 import {
   cancelBackupMediaDownload,
@@ -275,31 +287,26 @@ function preloadConversation(conversationId: string): void {
 }
 
 export const SmartLeftPane = memo(function SmartLeftPane({
-  hasFailedStorySends,
-  hasPendingUpdate,
-  otherTabsUnreadStats,
+  containerWidthBreakpoint,
+  isTabActive,
+  navTabsCollapsed,
 }: NavTabPanelProps) {
+  const backupMediaDownloadProgress = useSelector(getBackupMediaDownloadProgress);
   const challengeStatus = useSelector(getChallengeStatus);
-  const composerStep = useSelector(getComposerStep);
   const crashReportCount = useSelector(getCrashReportCount);
-  const getPreferredBadge = useSelector(getPreferredBadgeSelector);
-  const hasAppExpired = useSelector(hasExpired);
   const hasNetworkDialog = useSelector(getHasNetworkDialog);
-  const hasSearchQuery = useSelector(getHasSearchQuery);
-  const hasUnsupportedOS = useSelector(isOSUnsupported);
-  const hasUpdateDialog = useSelector(isUpdateDialogVisible);
   const i18n = useSelector(getIntl);
   const isMacOS = useSelector(getIsMacOS);
+  const isUpdateDialogVisible = useSelector(isUpdateDialogVisible);
   const isUpdateDownloaded = useSelector(getIsUpdateDownloaded);
-  const modeSpecificProps = useSelector(getModeSpecificProps);
-  const navTabsCollapsed = useSelector(getNavTabsCollapsed);
-  const preferredWidthFromStorage = useSelector(getPreferredLeftPaneWidth);
-  const selectedConversationId = useSelector(getSelectedConversationId);
-  const showArchived = useSelector(getShowArchived);
-  const targetedMessage = useSelector(getTargetedMessage);
+  const preferredLeftPaneWidth = useSelector(getPreferredLeftPaneWidth);
+  const regionCode = useSelector(getRegionCode);
   const theme = useSelector(getTheme);
-  const usernameCorrupted = useSelector(getUsernameCorrupted);
+  const unsupportedOSDialogType = useSelector(isOSUnsupported);
   const usernameLinkCorrupted = useSelector(getUsernameLinkCorrupted);
+  const usernameCorrupted = useSelector(getUsernameCorrupted);
+  const conversations = useSelector(getConversations);
+  const unreadCount = getUnreadCount(conversations);
   const backupMediaDownloadProgress = useSelector(
     getBackupMediaDownloadProgress
   );
@@ -373,77 +380,40 @@ export const SmartLeftPane = memo(function SmartLeftPane({
   const targetedMessageId = targetedMessage?.id;
 
   return (
-    <LeftPane
-      backupMediaDownloadProgress={backupMediaDownloadProgress}
-      blockConversation={blockConversation}
-      cancelBackupMediaDownload={cancelBackupMediaDownload}
-      challengeStatus={challengeStatus}
-      clearConversationSearch={clearConversationSearch}
-      clearGroupCreationError={clearGroupCreationError}
-      clearSearchQuery={clearSearchQuery}
-      closeMaximumGroupSizeModal={closeMaximumGroupSizeModal}
-      closeRecommendedGroupSizeModal={closeRecommendedGroupSizeModal}
-      composeDeleteAvatarFromDisk={composeDeleteAvatarFromDisk}
-      composeReplaceAvatar={composeReplaceAvatar}
-      composeSaveAvatarToDisk={composeSaveAvatarToDisk}
-      crashReportCount={crashReportCount}
-      createGroup={createGroup}
-      dismissBackupMediaDownloadBanner={dismissBackupMediaDownloadBanner}
-      endConversationSearch={endConversationSearch}
-      endSearch={endSearch}
-      getPreferredBadge={getPreferredBadge}
-      hasExpiredDialog={hasExpiredDialog}
-      hasFailedStorySends={hasFailedStorySends}
-      hasNetworkDialog={hasNetworkDialog}
-      hasPendingUpdate={hasPendingUpdate}
-      hasRelinkDialog={hasRelinkDialog}
-      hasUpdateDialog={hasUpdateDialog}
-      i18n={i18n}
-      isMacOS={isMacOS}
-      isUpdateDownloaded={isUpdateDownloaded}
-      lookupConversationWithoutServiceId={lookupConversationWithoutServiceId}
-      modeSpecificProps={modeSpecificProps}
-      navTabsCollapsed={navTabsCollapsed}
-      onOutgoingAudioCallInConversation={onOutgoingAudioCallInConversation}
-      onOutgoingVideoCallInConversation={onOutgoingVideoCallInConversation}
-      openUsernameReservationModal={openUsernameReservationModal}
-      otherTabsUnreadStats={otherTabsUnreadStats}
-      pauseBackupMediaDownload={pauseBackupMediaDownload}
-      preferredWidthFromStorage={preferredWidthFromStorage}
-      preloadConversation={preloadConversation}
-      removeConversation={removeConversation}
-      renderCaptchaDialog={renderCaptchaDialog}
-      renderCrashReportDialog={renderCrashReportDialog}
-      renderExpiredBuildDialog={renderExpiredBuildDialog}
-      renderMessageSearchResult={renderMessageSearchResult}
-      renderNetworkStatus={renderNetworkStatus}
-      renderRelinkDialog={renderRelinkDialog}
-      renderToastManager={renderToastManager}
-      renderUnsupportedOSDialog={renderUnsupportedOSDialog}
-      renderUpdateDialog={renderUpdateDialog}
-      resumeBackupMediaDownload={resumeBackupMediaDownload}
-      savePreferredLeftPaneWidth={savePreferredLeftPaneWidth}
-      searchInConversation={searchInConversation}
-      selectedConversationId={selectedConversationId}
-      setChallengeStatus={setChallengeStatus}
-      setComposeGroupAvatar={setComposeGroupAvatar}
-      setComposeGroupExpireTimer={setComposeGroupExpireTimer}
-      setComposeGroupName={setComposeGroupName}
-      setComposeSearchTerm={setComposeSearchTerm}
-      setComposeSelectedRegion={setComposeSelectedRegion}
-      setIsFetchingUUID={setIsFetchingUUID}
-      showArchivedConversations={showArchivedConversations}
-      showChooseGroupMembers={showChooseGroupMembers}
-      showConversation={showConversation}
-      showFindByPhoneNumber={showFindByPhoneNumber}
-      showFindByUsername={showFindByUsername}
-      showInbox={showInbox}
-      showUserNotFoundModal={showUserNotFoundModal}
-      startComposing={startComposing}
-      startSearch={startSearch}
-      startSettingGroupMetadata={startSettingGroupMetadata}
-      targetedMessageId={targetedMessageId}
-      theme={theme}
+    <>
+      {hasExpiredDialog && (
+        <DialogExpiredBuild
+          containerWidthBreakpoint={containerWidthBreakpoint}
+          i18n={i18n}
+          isPrimary={isTabActive}
+        />
+      )}
+      {unsupportedOSDialogType && (
+        <SmartUnsupportedOSDialog
+          containerWidthBreakpoint={containerWidthBreakpoint}
+          type={unsupportedOSDialogType}
+        />
+      )}
+      <LeftPane
+        unreadCount={unreadCount}
+        backupMediaDownloadProgress={backupMediaDownloadProgress}
+        cancelBackupMediaDownload={cancelBackupMediaDownload}
+        containerWidthBreakpoint={containerWidthBreakpoint}
+        dismissBackupMediaDownloadBanner={dismissBackupMediaDownloadBanner}
+        hasFailedStorySends={hasFailedStorySends}
+        hasPendingUpdate={hasPendingUpdate}
+        i18n={i18n}
+        isTabActive={isTabActive}
+        modeSpecificProps={modeSpecificProps}
+        navTabsCollapsed={navTabsCollapsed}
+        otherTabsUnreadStats={otherTabsUnreadStats}
+        pauseBackupMediaDownload={pauseBackupMediaDownload}
+        preferredWidthFromStorage={preferredLeftPaneWidth}
+        resumeBackupMediaDownload={resumeBackupMediaDownload}
+        selectedConversationId={selectedConversationId}
+        showConversation={showConversation}
+        targetedMessage={targetedMessage}
+        theme={theme}
       toggleComposeEditingAvatar={toggleComposeEditingAvatar}
       toggleConversationInChooseMembers={toggleConversationInChooseMembers}
       toggleNavTabsCollapse={toggleNavTabsCollapse}

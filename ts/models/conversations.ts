@@ -4807,9 +4807,10 @@ export class ConversationModel extends window.Backbone
     await markConversationRead(this.attributes, newestUnreadAt, options);
     await this.updateUnread();
     window.reduxActions.callHistory.updateCallHistoryUnreadCount();
+    window.reduxActions.conversations.conversationChanged(this.id);
   }
 
-  async updateUnread(): Promise<void> {
+  private updateUnreadDebounced = debounce(async () => {
     const options = {
       storyId: undefined,
       includeStoryReplies: !isGroup(this.attributes),
@@ -4825,6 +4826,16 @@ export class ConversationModel extends window.Backbone
       prevUnreadCount !== unreadCount ||
       prevUnreadMentionsCount !== unreadMentionsCount
     ) {
+      this.set({
+        unreadCount,
+        unreadMentionsCount,
+      });
+      window.reduxActions.conversations.conversationChanged(this.id);
+    }
+  }, 100);
+
+  async updateUnread(): Promise<void> {
+    await this.updateUnreadDebounced();
       this.set({
         unreadCount,
         unreadMentionsCount,
