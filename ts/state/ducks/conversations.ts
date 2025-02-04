@@ -5318,6 +5318,19 @@ export function reducer(
     | ChangeNavTabActionType
   >
 ): ConversationsStateType {
+  if (action.type === 'CONVERSATION_CHANGED') {
+    return {
+      ...state,
+      conversationLookup: {
+        ...state.conversationLookup,
+        [action.payload.id]: {
+          ...state.conversationLookup[action.payload.id],
+          ...action.payload.data,
+        },
+      },
+    };
+  }
+
   if (action.type === CLEAR_CONVERSATIONS_PENDING_VERIFICATION) {
     return {
       ...state,
