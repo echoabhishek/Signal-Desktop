@@ -2624,9 +2624,11 @@ export class Message extends React.PureComponent<Props, State> {
     }
 
     if (
-      attachments &&
-      attachments.length > 0 &&
-      isPermanentlyUndownloadable(attachments[0])
+attachments &&
+attachments.length > 0 &&
+isPermanentlyUndownloadable(attachments[0]) &&
+!isSticker &&
+!attachments[0].pending
     ) {
       event.preventDefault();
       event.stopPropagation();
