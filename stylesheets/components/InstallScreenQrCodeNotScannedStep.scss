@@ -11,9 +11,7 @@
     $base-max-width: 760px;
 
     align-items: center;
-    background: variables.$color-white;
     border-radius: 8px;
-    color: variables.$color-black;
     display: flex;
     flex-direction: row;
     animation: 500ms module-InstallScreenQrCodeNotScannedStep__slide-in;
@@ -21,11 +19,15 @@
     top: 0;
 
     @include mixins.light-theme {
+      background: variables.$color-white;
+      color: variables.$color-black;
       max-width: $base-max-width;
       padding: 22px;
     }
 
     @include mixins.dark-theme {
+      background: variables.$color-gray-80;
+      color: variables.$color-white;
       max-width: $base-max-width + 44px;
       padding: 44px;
       margin-top: 44px; // Avoids overlap with the Signal logo
@@ -48,23 +50,38 @@
     width: $size;
 
     &--loaded {
-      background: variables.$color-white;
+      @include mixins.light-theme {
+        background: variables.$color-white;
+      }
+      @include mixins.dark-theme {
+        background: variables.$color-gray-90;
+      }
     }
 
     &--load-failed {
       @include mixins.font-subtitle;
-      border-color: variables.$color-gray-05;
       border-radius: 10px;
-      color: variables.$color-gray-60;
+      
+      @include mixins.light-theme {
+        border-color: variables.$color-gray-05;
+        color: variables.$color-gray-60;
+      }
+      @include mixins.dark-theme {
+        border-color: variables.$color-gray-65;
+        color: variables.$color-gray-25;
+      }
     }
 
     &--just-button {
-      background: variables.$color-gray-05;
+      @include mixins.light-theme {
+        background: variables.$color-gray-05;
+      }
+      @include mixins.dark-theme {
+        background: variables.$color-gray-65;
+      }
     }
 
     &--just-button &__link {
-      background: variables.$color-white;
-      color: variables.$color-black;
       padding-block: 8px;
       padding-inline: 16px;
       border-radius: 34px;
@@ -72,11 +89,28 @@
       font-weight: 500;
       margin-block-start: 0;
 
+      @include mixins.light-theme {
+        background: variables.$color-white;
+        color: variables.$color-black;
+      }
+      @include mixins.dark-theme {
+        background: variables.$color-gray-80;
+        color: variables.$color-white;
+      }
+
       &::before {
-        @include mixins.color-svg(
-          '../images/icons/v3/refresh/refresh-bold.svg',
-          variables.$color-black
-        );
+        @include mixins.light-theme {
+          @include mixins.color-svg(
+            '../images/icons/v3/refresh/refresh-bold.svg',
+            variables.$color-black
+          );
+        }
+        @include mixins.dark-theme {
+          @include mixins.color-svg(
+            '../images/icons/v3/refresh/refresh-bold.svg',
+            variables.$color-white
+          );
+        }
       }
     }
 

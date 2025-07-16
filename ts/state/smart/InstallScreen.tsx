@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react';
 import React, { memo, useCallback, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 
-import { getIntl } from '../selectors/user';
+import { getIntl, getTheme } from '../selectors/user';
 import { getUpdatesState } from '../selectors/updates';
 import { getInstallerState } from '../selectors/installer';
 import { useAppActions } from '../ducks/app';
@@ -27,6 +27,7 @@ type PropsType = ComponentProps<typeof InstallScreen>;
 
 export const SmartInstallScreen = memo(function SmartInstallScreen() {
   const i18n = useSelector(getIntl);
+  const theme = useSelector(getTheme);
   const installerState = useSelector(getInstallerState);
   const updates = useSelector(getUpdatesState);
   const { openInbox } = useAppActions();
@@ -83,6 +84,7 @@ export const SmartInstallScreen = memo(function SmartInstallScreen() {
         step: InstallScreenStep.QrCodeNotScanned,
         screenSpecificProps: {
           i18n,
+          theme,
           provisioningUrl: installerState.provisioningUrl,
           hasExpired,
           updates,

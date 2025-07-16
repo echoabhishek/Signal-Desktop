@@ -6,7 +6,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import classNames from 'classnames';
 import { noop } from 'lodash';
 
-import type { LocalizerType } from '../../types/Util';
+import type { LocalizerType, ThemeType } from '../../types/Util';
 import {
   InstallScreenStep,
   InstallScreenQRCodeError,
@@ -31,6 +31,7 @@ import type { UpdatesStateType } from '../../state/ducks/updates';
 
 export type PropsType = Readonly<{
   i18n: LocalizerType;
+  theme: ThemeType;
   provisioningUrl: Loadable<string, InstallScreenQRCodeError>;
   hasExpired?: boolean;
   updates: UpdatesStateType;
@@ -53,6 +54,7 @@ export function InstallScreenQrCodeNotScannedStep({
   currentVersion,
   hasExpired,
   i18n,
+  theme,
   isStaging,
   OS,
   provisioningUrl,
@@ -82,6 +84,7 @@ export function InstallScreenQrCodeNotScannedStep({
       <div className="module-InstallScreenQrCodeNotScannedStep__contents">
         <InstallScreenQrCode
           i18n={i18n}
+          theme={theme}
           {...provisioningUrl}
           retryGetQrCode={retryGetQrCode}
         />
@@ -129,6 +132,7 @@ export function InstallScreenQrCodeNotScannedStep({
 function InstallScreenQrCode(
   props: Loadable<string, InstallScreenQRCodeError> & {
     i18n: LocalizerType;
+    theme: ThemeType;
     retryGetQrCode: () => void;
   }
 ): ReactElement {
@@ -208,7 +212,7 @@ function InstallScreenQrCode(
       }
       break;
     case LoadingState.Loaded:
-      contents = <QRCodeImage i18n={i18n} link={props.value} />;
+      contents = <QRCodeImage i18n={i18n} theme={props.theme} link={props.value} />;
       break;
     default:
       throw missingCaseError(props);
@@ -232,9 +236,11 @@ function InstallScreenQrCode(
 
 function QRCodeImage({
   i18n,
+  theme,
   link,
 }: {
   i18n: LocalizerType;
+  theme: ThemeType;
   link: string;
 }): JSX.Element {
   const [isCopying, setIsCopying] = useState(false);
@@ -277,7 +283,11 @@ function QRCodeImage({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <BrandedQRCode size={16} link={link} color="black" />
+      <BrandedQRCode 
+        size={16} 
+        link={link} 
+        color={theme === ThemeType.dark ? 'white' : 'black'} 
+      />
     </svg>
   );
 }
